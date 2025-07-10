@@ -188,7 +188,7 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
         </div>
 
         {/* Sessions List - Scrollable with max 8 sessions */}
-        <div className="flex-1 overflow-y-auto max-h-[400px] space-y-3 mb-6">
+        <div className="flex-1 overflow-y-auto max-h-[480px] space-y-3 mb-4">
           {filteredSessions.map((session) => (
             <div
               key={session.id}
@@ -213,10 +213,10 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
         </div>
 
         {/* New Session Button - Static position */}
-        <div className="border-t border-border pt-4">
+        <div className="border-t border-border pt-3 mt-auto">
           <Button 
             onClick={() => setShowCreateSession(true)}
-            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-3 shadow-md hover:shadow-lg transition-all"
+            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-2.5 shadow-md hover:shadow-lg transition-all"
           >
             <Plus className="mr-2 h-4 w-4" />
             New Session
@@ -258,13 +258,22 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
                 <p className="text-sm text-slate-600 dark:text-slate-300">{selectedSession.date}</p>
               </div>
               
-              <div className="relative flex-1 flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-slate-800 dark:to-slate-900 rounded-xl">
-                <img
-                  src={selectedSession.images[currentImageIndex]}
-                  alt="Session photo"
-                  className="max-w-full max-h-full object-contain rounded-xl shadow-2xl transition-opacity duration-200"
-                  loading="eager"
-                />
+              <div className="relative flex-1 flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-slate-800 dark:to-slate-900 rounded-xl overflow-hidden">
+                <div className="flex items-center justify-center w-full h-full p-4">
+                  <img
+                    src={selectedSession.images[currentImageIndex]}
+                    alt="Session photo"
+                    className="max-w-full max-h-full object-contain rounded-lg shadow-2xl transition-opacity duration-200"
+                    style={{
+                      aspectRatio: 'auto',
+                      maxWidth: '100%',
+                      maxHeight: '100%',
+                      width: 'auto',
+                      height: 'auto'
+                    }}
+                    loading="eager"
+                  />
+                </div>
                 
                 {/* Navigation Buttons */}
                 {selectedSession.images.length > 1 && (
@@ -293,9 +302,9 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
             </div>
 
             {/* Right Sidebar - Enhanced Thumbnails */}
-            <div className="w-64 p-4 border-l border-border bg-gradient-to-b from-gray-50 to-gray-100 dark:from-slate-700 dark:to-slate-800 overflow-y-auto">
+            <div className="w-72 p-4 border-l border-border bg-gradient-to-b from-gray-50 to-gray-100 dark:from-slate-700 dark:to-slate-800 overflow-y-auto">
               <h3 className="text-base font-bold mb-4 text-slate-800 dark:text-white">Photos ({selectedSession.images.length})</h3>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-4">
                 {selectedSession.images.map((image, index) => (
                   <div
                     key={index}
@@ -309,7 +318,7 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
                     <img
                       src={image}
                       alt={`Thumbnail ${index + 1}`}
-                      className="w-full h-24 object-cover transition-transform duration-200"
+                      className="w-full h-32 object-cover transition-transform duration-200"
                       loading="eager"
                     />
                   </div>
