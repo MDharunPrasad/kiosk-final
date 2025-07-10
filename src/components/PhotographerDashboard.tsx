@@ -17,6 +17,16 @@ interface Session {
   };
 }
 
+const createPlaceholderImage = (text: string, width: number = 800, height: number = 600) => {
+  return `data:image/svg+xml;base64,${btoa(`
+    <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+      <rect width="100%" height="100%" fill="#f3f4f6"/>
+      <rect x="10" y="10" width="${width-20}" height="${height-20}" fill="none" stroke="#d1d5db" stroke-width="2" stroke-dasharray="10,5"/>
+      <text x="50%" y="50%" font-family="Arial, sans-serif" font-size="24" fill="#6b7280" text-anchor="middle" dy=".3em">${text}</text>
+    </svg>
+  `)}`;
+};
+
 const mockSessions: Session[] = [
   {
     id: "1",
@@ -24,9 +34,9 @@ const mockSessions: Session[] = [
     date: "2024-07-20",
     type: "Family",
     images: [
-      "https://images.unsplash.com/photo-1511895426328-dc8714191300?w=800&h=600&fit=crop",
-      "https://images.unsplash.com/photo-1520591846324-619f5e57e75d?w=800&h=600&fit=crop",
-      "https://images.unsplash.com/photo-1517198875426-d8d24d67ef72?w=800&h=600&fit=crop",
+      "/lovable-uploads/a03d6497-7d75-4799-898d-62da65caad0f.png",
+      createPlaceholderImage("Family Photo 2"),
+      createPlaceholderImage("Family Photo 3"),
     ],
     customerDetails: {
       name: "Johnson Family",
@@ -40,8 +50,8 @@ const mockSessions: Session[] = [
     date: "2024-07-15",
     type: "Wedding",
     images: [
-      "https://images.unsplash.com/photo-1519741497674-611481863552?w=800&h=600&fit=crop",
-      "https://images.unsplash.com/photo-1469371670807-013ccf25f16a?w=800&h=600&fit=crop",
+      createPlaceholderImage("Wedding Photo 1"),
+      createPlaceholderImage("Wedding Photo 2"),
     ],
     customerDetails: {
       name: "Sarah & Mike",
@@ -55,8 +65,8 @@ const mockSessions: Session[] = [
     date: "2024-07-10",
     type: "Graduation",
     images: [
-      "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=800&h=600&fit=crop",
-      "https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=800&h=600&fit=crop",
+      createPlaceholderImage("Graduation Photo 1"),
+      createPlaceholderImage("Graduation Photo 2"),
     ],
     customerDetails: {
       name: "Emily Rodriguez",
@@ -70,8 +80,8 @@ const mockSessions: Session[] = [
     date: "2024-07-05",
     type: "Corporate",
     images: [
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&h=600&fit=crop",
-      "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=800&h=600&fit=crop",
+      createPlaceholderImage("Corporate Photo 1"),
+      createPlaceholderImage("Corporate Photo 2"),
     ],
     customerDetails: {
       name: "Tech Solutions Inc",
