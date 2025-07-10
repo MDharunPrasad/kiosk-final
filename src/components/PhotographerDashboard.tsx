@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Calendar, Search, ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { Calendar, Search, ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
 import { CreateSessionForm } from "./CreateSessionForm";
 
 interface Session {
@@ -98,7 +98,9 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
   };
 
   const handleBackToLogin = () => {
-    window.location.reload();
+    // Stay on dashboard instead of going to login
+    setSelectedSession(sessions[0]);
+    setCurrentImageIndex(0);
   };
 
   const filteredSessions = sessions.filter(session => {
@@ -125,6 +127,16 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
     setCurrentImageIndex(0);
   };
 
+  const handleDeleteSession = (sessionId: string) => {
+    const updatedSessions = sessions.filter(session => session.id !== sessionId);
+    setSessions(updatedSessions);
+    
+    if (selectedSession.id === sessionId && updatedSessions.length > 0) {
+      setSelectedSession(updatedSessions[0]);
+      setCurrentImageIndex(0);
+    }
+  };
+
   const getSessionIcon = (type: string) => {
     const icons = {
       "Family": "F",
@@ -136,9 +148,9 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-900 dark:to-slate-800 flex flex-col">
+    <div className="h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-900 dark:to-slate-800 flex flex-col overflow-hidden">
       {/* Top Header */}
-      <div className="bg-white dark:bg-slate-800 border-b border-border p-4 flex justify-between items-center shadow-sm">
+      <div className="bg-white dark:bg-slate-800 border-b border-border p-4 flex justify-between items-center shadow-sm flex-shrink-0">
         <button 
           onClick={handleBackToLogin}
           className="flex items-center gap-3 text-blue-600 hover:text-blue-800 transition-all duration-200 group"
@@ -160,7 +172,7 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
         </div>
       </div>
 
-      <div className="flex flex-1 max-h-screen overflow-hidden">
+      <div className="flex flex-1 overflow-hidden h-full">
         {/* Left Sidebar */}
         <div className="w-80 bg-white dark:bg-slate-800 border-r border-border p-6 flex flex-col" style={{ height: 'calc(100vh - 80px)' }}>
         <h1 className="text-2xl font-bold mb-6">Sessions</h1>
@@ -207,6 +219,17 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
                   <h3 className="font-medium text-sm truncate">{session.customerDetails.name}</h3>
                   <p className="text-xs text-muted-foreground font-medium">{session.date}</p>
                 </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteSession(session.id);
+                  }}
+                  className="p-1 h-auto hover:bg-red-100 hover:text-red-600 transition-colors"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
               </div>
             </div>
           ))}
@@ -258,15 +281,15 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
                 <p className="text-sm text-slate-600 dark:text-slate-300">{selectedSession.date}</p>
               </div>
               
-              <div className="relative flex-1 flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-slate-800 dark:to-slate-900 rounded-xl overflow-hidden max-h-[calc(100vh-180px)]">
-                <div className="flex items-center justify-center w-full h-full p-4 max-h-[calc(100vh-220px)]">
+              <div className="relative bg-gradient-to-br from-gray-50 to-gray-100 dark:from-slate-800 dark:to-slate-900 rounded-xl overflow-hidden" style={{ height: 'calc(100vh - 200px)' }}>
+                <div className="absolute inset-0 flex items-center justify-center p-4">
                   <img
                     src={selectedSession.images[currentImageIndex]}
                     alt="Session photo"
-                    className="max-w-full max-h-full object-contain rounded-lg shadow-2xl transition-opacity duration-200"
+                    className="object-contain rounded-lg shadow-2xl transition-opacity duration-200"
                     style={{
-                      maxWidth: 'calc(100% - 2rem)',
-                      maxHeight: 'calc(100vh - 260px)',
+                      maxWidth: '100%',
+                      maxHeight: '100%',
                       width: 'auto',
                       height: 'auto'
                     }}
@@ -307,7 +330,7 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
             {/* Right Sidebar - Enhanced Thumbnails */}
             <div className="w-80 p-4 border-l border-border bg-gradient-to-b from-gray-50 to-gray-100 dark:from-slate-700 dark:to-slate-800 overflow-y-auto">
               <h3 className="text-base font-bold mb-4 text-slate-800 dark:text-white">Photos ({selectedSession.images.length})</h3>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 {selectedSession.images.map((image, index) => (
                   <div
                     key={index}
@@ -321,7 +344,7 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
                     <img
                       src={image}
                       alt={`Thumbnail ${index + 1}`}
-                      className="w-full h-36 object-cover transition-transform duration-200"
+                      className="w-full h-48 object-cover transition-transform duration-200"
                       loading="lazy"
                       onError={(e) => {
                         console.log(`Failed to load image: ${image}`);
