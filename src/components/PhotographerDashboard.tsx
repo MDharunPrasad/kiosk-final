@@ -17,16 +17,6 @@ interface Session {
   };
 }
 
-const createPlaceholderImage = (text: string, width: number = 800, height: number = 600) => {
-  return `data:image/svg+xml;base64,${btoa(`
-    <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-      <rect width="100%" height="100%" fill="#f3f4f6"/>
-      <rect x="10" y="10" width="${width-20}" height="${height-20}" fill="none" stroke="#d1d5db" stroke-width="2" stroke-dasharray="10,5"/>
-      <text x="50%" y="50%" font-family="Arial, sans-serif" font-size="24" fill="#6b7280" text-anchor="middle" dy=".3em">${text}</text>
-    </svg>
-  `)}`;
-};
-
 const mockSessions: Session[] = [
   {
     id: "1",
@@ -35,8 +25,8 @@ const mockSessions: Session[] = [
     type: "Family",
     images: [
       "/lovable-uploads/a03d6497-7d75-4799-898d-62da65caad0f.png",
-      createPlaceholderImage("Family Photo 2"),
-      createPlaceholderImage("Family Photo 3"),
+      "https://images.unsplash.com/photo-1472396961693-142e6e269027?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1582562124811-c09040d0a901?w=800&h=600&fit=crop",
     ],
     customerDetails: {
       name: "Johnson Family",
@@ -50,8 +40,8 @@ const mockSessions: Session[] = [
     date: "2024-07-15",
     type: "Wedding",
     images: [
-      createPlaceholderImage("Wedding Photo 1"),
-      createPlaceholderImage("Wedding Photo 2"),
+      "https://images.unsplash.com/photo-1488972685288-c3fd157d7c7a?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1441057206919-63d19fac2369?w=800&h=600&fit=crop",
     ],
     customerDetails: {
       name: "Sarah & Mike",
@@ -65,8 +55,8 @@ const mockSessions: Session[] = [
     date: "2024-07-10",
     type: "Graduation",
     images: [
-      createPlaceholderImage("Graduation Photo 1"),
-      createPlaceholderImage("Graduation Photo 2"),
+      "https://images.unsplash.com/photo-1472396961693-142e6e269027?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1582562124811-c09040d0a901?w=800&h=600&fit=crop",
     ],
     customerDetails: {
       name: "Emily Rodriguez",
@@ -80,8 +70,8 @@ const mockSessions: Session[] = [
     date: "2024-07-05",
     type: "Corporate",
     images: [
-      createPlaceholderImage("Corporate Photo 1"),
-      createPlaceholderImage("Corporate Photo 2"),
+      "https://images.unsplash.com/photo-1488972685288-c3fd157d7c7a?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1441057206919-63d19fac2369?w=800&h=600&fit=crop",
     ],
     customerDetails: {
       name: "Tech Solutions Inc",
@@ -340,7 +330,7 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
             {/* Right Sidebar - Enhanced Thumbnails */}
             <div className="w-80 p-4 border-l border-border bg-gradient-to-b from-gray-50 to-gray-100 dark:from-slate-700 dark:to-slate-800 overflow-y-auto">
               <h3 className="text-base font-bold mb-4 text-slate-800 dark:text-white">Photos ({selectedSession.images.length})</h3>
-              <div className="grid grid-cols-1 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 {selectedSession.images.map((image, index) => (
                   <div
                     key={index}
@@ -354,7 +344,7 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
                     <img
                       src={image}
                       alt={`Thumbnail ${index + 1}`}
-                      className="w-full h-48 object-cover transition-transform duration-200"
+                      className="w-full h-32 object-cover transition-transform duration-200"
                       loading="lazy"
                       onError={(e) => {
                         console.log(`Failed to load image: ${image}`);
