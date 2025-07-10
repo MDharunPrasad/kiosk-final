@@ -3,22 +3,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Upload, X } from "lucide-react";
+import { Upload, X, ArrowLeft } from "lucide-react";
 
-interface CreateSessionModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+interface CreateSessionFormProps {
+  onCancel: () => void;
   onSessionCreated: (session: any) => void;
 }
 
-export function CreateSessionModal({ isOpen, onClose, onSessionCreated }: CreateSessionModalProps) {
+export function CreateSessionForm({ onCancel, onSessionCreated }: CreateSessionFormProps) {
   const [customerName, setCustomerName] = useState("");
   const [location, setLocation] = useState("");
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
@@ -55,19 +47,31 @@ export function CreateSessionModal({ isOpen, onClose, onSessionCreated }: Create
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold">Create New Photo Session</DialogTitle>
-          <DialogDescription>
-            Fill in the details below to start a new photography session.
-          </DialogDescription>
-        </DialogHeader>
+    <div className="flex-1 flex flex-col">
+      {/* Header */}
+      <div className="border-b border-border p-6">
+        <div className="flex items-center gap-4">
+          <Button 
+            variant="ghost" 
+            size="icon"
+            onClick={onCancel}
+            className="hover:bg-muted"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div className="text-center flex-1">
+            <h1 className="text-3xl font-bold">Create New Photo Session</h1>
+            <p className="text-muted-foreground">Fill in the details below to start a new photography session.</p>
+          </div>
+        </div>
+      </div>
 
-        <div className="space-y-6 py-4">
+      {/* Form Content */}
+      <div className="flex-1 p-8">
+        <div className="max-w-2xl mx-auto space-y-8">
           {/* Customer Name */}
-          <div className="space-y-2">
-            <Label htmlFor="customer-name" className="text-sm font-medium">
+          <div className="space-y-3">
+            <Label htmlFor="customer-name" className="text-lg font-medium">
               Customer Name
             </Label>
             <Input
@@ -75,17 +79,17 @@ export function CreateSessionModal({ isOpen, onClose, onSessionCreated }: Create
               placeholder="Enter customer's full name"
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
-              className="w-full"
+              className="w-full h-12 text-base"
             />
           </div>
 
           {/* Location */}
-          <div className="space-y-2">
-            <Label htmlFor="location" className="text-sm font-medium">
+          <div className="space-y-3">
+            <Label htmlFor="location" className="text-lg font-medium">
               Location
             </Label>
             <Select value={location} onValueChange={setLocation}>
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="w-full h-12 text-base">
                 <SelectValue placeholder="Select a location" />
               </SelectTrigger>
               <SelectContent>
@@ -104,7 +108,7 @@ export function CreateSessionModal({ isOpen, onClose, onSessionCreated }: Create
 
           {/* Session Photos */}
           <div className="space-y-4">
-            <Label className="text-sm font-medium">Session Photos</Label>
+            <Label className="text-lg font-medium">Session Photos</Label>
             
             {/* Upload Button */}
             <Button 
@@ -127,17 +131,17 @@ export function CreateSessionModal({ isOpen, onClose, onSessionCreated }: Create
 
             {/* Uploaded Files Preview */}
             {uploadedFiles.length > 0 && (
-              <div className="space-y-3">
-                <p className="text-sm font-medium">
+              <div className="space-y-4">
+                <p className="text-base font-medium">
                   Uploaded Photos ({uploadedFiles.length})
                 </p>
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4">
                   {uploadedFiles.map((file, index) => (
                     <div key={index} className="relative group">
                       <img
                         src={URL.createObjectURL(file)}
                         alt={`Upload ${index + 1}`}
-                        className="w-full h-20 object-cover rounded-lg border"
+                        className="w-full h-24 object-cover rounded-lg border"
                       />
                       <button
                         onClick={() => removeFile(index)}
@@ -155,18 +159,18 @@ export function CreateSessionModal({ isOpen, onClose, onSessionCreated }: Create
             )}
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex gap-3 pt-4">
+          {/* Complete Session Button */}
+          <div className="pt-6">
             <Button
               onClick={handleCreateSession}
-              className="flex-1 bg-green-600 hover:bg-green-700 text-white py-3"
+              className="w-full h-16 bg-green-600 hover:bg-green-700 text-white text-lg font-medium"
               disabled={!customerName || !location || uploadedFiles.length === 0}
             >
               ✓ Complete Session
             </Button>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>
   );
 }

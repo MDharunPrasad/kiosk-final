@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar, Search, ChevronLeft, ChevronRight, Plus } from "lucide-react";
-import { CreateSessionModal } from "./CreateSessionModal";
+import { CreateSessionForm } from "./CreateSessionForm";
 
 interface Session {
   id: string;
@@ -83,7 +83,8 @@ export function PhotographerDashboard() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDate, setSelectedDate] = useState("");
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [showCreateSession, setShowCreateSession] = useState(false);
+  const [sessions, setSessions] = useState<Session[]>(mockSessions);
 
   const filteredSessions = mockSessions.filter(session => {
     const matchesSearch = session.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -175,7 +176,7 @@ export function PhotographerDashboard() {
         {/* New Session Button - Moved to bottom */}
         <div className="mt-auto">
           <Button 
-            onClick={() => setIsCreateModalOpen(true)}
+            onClick={() => setShowCreateSession(true)}
             className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3"
           >
             <Plus className="mr-2 h-4 w-4" />
@@ -185,100 +186,100 @@ export function PhotographerDashboard() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
-        {/* Header */}
-        <div className="border-b border-border p-6">
-          <div className="text-center">
-            <h1 className="text-3xl font-bold">{selectedSession.name}</h1>
-            <p className="text-muted-foreground">{selectedSession.date}</p>
+      {showCreateSession ? (
+        <CreateSessionForm
+          onCancel={() => setShowCreateSession(false)}
+          onSessionCreated={(newSession) => {
+            // Handle new session creation
+            console.log("New session created:", newSession);
+            setShowCreateSession(false);
+          }}
+        />
+      ) : (
+        <div className="flex-1 flex flex-col">
+          {/* Header */}
+          <div className="border-b border-border p-6">
+            <div className="text-center">
+              <h1 className="text-3xl font-bold">{selectedSession.name}</h1>
+              <p className="text-muted-foreground">{selectedSession.date}</p>
+            </div>
+          </div>
+
+          <div className="flex-1 flex">
+            {/* Main Image Area */}
+            <div className="flex-1 p-6 flex flex-col items-center justify-center relative">
+              <div className="relative w-full h-full max-h-[calc(100vh-240px)] flex items-center justify-center">
+                <img
+                  src={selectedSession.images[currentImageIndex]}
+                  alt="Session photo"
+                  className="max-w-full max-h-full object-contain rounded-lg shadow-lg"
+                />
+                
+                {/* Navigation Buttons */}
+                {selectedSession.images.length > 1 && (
+                  <>
+                    <Button
+                      variant="secondary"
+                      size="icon"
+                      className="absolute left-4 top-1/2 transform -translate-y-1/2 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
+                      onClick={prevImage}
+                      disabled={currentImageIndex === 0}
+                    >
+                      <ChevronLeft className="h-6 w-6" />
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="icon"
+                      className="absolute right-4 top-1/2 transform -translate-y-1/2 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
+                      onClick={nextImage}
+                      disabled={currentImageIndex === selectedSession.images.length - 1}
+                    >
+                      <ChevronRight className="h-6 w-6" />
+                    </Button>
+                  </>
+                )}
+              </div>
+
+              {/* Customer Details */}
+              <div className="mt-6 text-center">
+                <h2 className="text-xl font-semibold">{selectedSession.customerDetails.name}</h2>
+                <p className="text-muted-foreground">
+                  {selectedSession.customerDetails.location} • {selectedSession.customerDetails.date}
+                </p>
+              </div>
+
+              {/* Status */}
+              <div className="mt-4 text-center">
+                <span className="text-sm text-muted-foreground">Hidden</span>
+              </div>
+            </div>
+
+            {/* Right Sidebar - Thumbnails */}
+            <div className="w-80 p-6 border-l border-border">
+              <div className="grid grid-cols-2 gap-4">
+                {selectedSession.images.map((image, index) => (
+                  <div
+                    key={index}
+                    onClick={() => setCurrentImageIndex(index)}
+                    className={`cursor-pointer rounded-lg overflow-hidden border-2 transition-colors ${
+                      currentImageIndex === index
+                        ? "border-primary"
+                        : "border-transparent hover:border-muted-foreground"
+                    }`}
+                  >
+                    <img
+                      src={image}
+                      alt={`Thumbnail ${index + 1}`}
+                      className="w-full h-32 object-cover"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
+      )}
 
-        <div className="flex-1 flex">
-          {/* Main Image Area */}
-          <div className="flex-1 p-6 flex flex-col items-center justify-center relative">
-            <div className="relative w-full h-full max-h-[calc(100vh-240px)] flex items-center justify-center">
-              <img
-                src={selectedSession.images[currentImageIndex]}
-                alt="Session photo"
-                className="max-w-full max-h-full object-contain rounded-lg shadow-lg"
-              />
-              
-              {/* Navigation Buttons */}
-              {selectedSession.images.length > 1 && (
-                <>
-                  <Button
-                    variant="secondary"
-                    size="icon"
-                    className="absolute left-4 top-1/2 transform -translate-y-1/2 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
-                    onClick={prevImage}
-                    disabled={currentImageIndex === 0}
-                  >
-                    <ChevronLeft className="h-6 w-6" />
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="icon"
-                    className="absolute right-4 top-1/2 transform -translate-y-1/2 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
-                    onClick={nextImage}
-                    disabled={currentImageIndex === selectedSession.images.length - 1}
-                  >
-                    <ChevronRight className="h-6 w-6" />
-                  </Button>
-                </>
-              )}
-            </div>
-
-            {/* Customer Details */}
-            <div className="mt-6 text-center">
-              <h2 className="text-xl font-semibold">{selectedSession.customerDetails.name}</h2>
-              <p className="text-muted-foreground">
-                {selectedSession.customerDetails.location} • {selectedSession.customerDetails.date}
-              </p>
-            </div>
-
-            {/* Status */}
-            <div className="mt-4 text-center">
-              <span className="text-sm text-muted-foreground">Hidden</span>
-            </div>
-          </div>
-
-          {/* Right Sidebar - Thumbnails */}
-          <div className="w-80 p-6 border-l border-border">
-            <div className="grid grid-cols-2 gap-4">
-              {selectedSession.images.map((image, index) => (
-                <div
-                  key={index}
-                  onClick={() => setCurrentImageIndex(index)}
-                  className={`cursor-pointer rounded-lg overflow-hidden border-2 transition-colors ${
-                    currentImageIndex === index
-                      ? "border-primary"
-                      : "border-transparent hover:border-muted-foreground"
-                  }`}
-                >
-                  <img
-                    src={image}
-                    alt={`Thumbnail ${index + 1}`}
-                    className="w-full h-32 object-cover"
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-      </div>
-
-      {/* Create Session Modal */}
-      <CreateSessionModal
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        onSessionCreated={(newSession) => {
-          // Handle new session creation
-          console.log("New session created:", newSession);
-          setIsCreateModalOpen(false);
-        }}
-      />
     </div>
   );
 }
