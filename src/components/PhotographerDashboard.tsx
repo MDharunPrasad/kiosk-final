@@ -258,15 +258,15 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
                 <p className="text-sm text-slate-600 dark:text-slate-300">{selectedSession.date}</p>
               </div>
               
-              <div className="relative flex-1 flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-slate-800 dark:to-slate-900 rounded-xl overflow-hidden" style={{ height: 'calc(100vh - 200px)' }}>
-                <div className="flex items-center justify-center w-full h-full p-6">
+              <div className="relative flex-1 flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-slate-800 dark:to-slate-900 rounded-xl overflow-hidden max-h-[calc(100vh-180px)]">
+                <div className="flex items-center justify-center w-full h-full p-4 max-h-[calc(100vh-220px)]">
                   <img
                     src={selectedSession.images[currentImageIndex]}
                     alt="Session photo"
                     className="max-w-full max-h-full object-contain rounded-lg shadow-2xl transition-opacity duration-200"
                     style={{
-                      maxWidth: '100%',
-                      maxHeight: '100%',
+                      maxWidth: 'calc(100% - 2rem)',
+                      maxHeight: 'calc(100vh - 260px)',
                       width: 'auto',
                       height: 'auto'
                     }}
