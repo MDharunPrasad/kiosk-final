@@ -143,20 +143,17 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
           onClick={handleBackToLogin}
           className="flex items-center gap-3 text-blue-600 hover:text-blue-800 transition-all duration-200 group"
         >
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all">
-            <span className="text-white font-bold text-lg">📸</span>
-          </div>
           <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Photo Kiosk</span>
         </button>
         
-        <div className="flex items-center gap-4 mr-6">
-          <div className="text-left bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-700 dark:to-slate-600 px-6 py-3 rounded-xl shadow-sm border border-blue-200 dark:border-slate-600">
-            <p className="font-bold text-slate-800 dark:text-slate-200 text-lg">{username || "Photographer"}</p>
-            <p className="text-sm text-slate-600 dark:text-slate-400 font-medium">{new Date().toLocaleDateString()}</p>
+        <div className="flex items-center gap-8">
+          <div className="text-left bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-700 dark:to-slate-600 px-4 py-2 rounded-lg shadow-sm border border-blue-200 dark:border-slate-600">
+            <p className="font-bold text-slate-800 dark:text-slate-200 text-base">{username || "Photographer"}</p>
+            <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">{new Date().toLocaleDateString()}</p>
           </div>
           <button 
             onClick={handleLogout}
-            className="px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
+            className="px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200"
           >
             Logout
           </button>
@@ -252,18 +249,16 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
         />
       ) : (
         <div className="flex-1 flex flex-col bg-white dark:bg-slate-800">
-          {/* Header with customer name and date */}
-          <div className="border-b border-border p-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-700 dark:to-slate-600">
-            <div className="text-center">
-              <h1 className="text-2xl font-bold text-slate-800 dark:text-white mb-1">{selectedSession.customerDetails.name}</h1>
-              <p className="text-slate-600 dark:text-slate-300 font-medium">{selectedSession.date}</p>
-            </div>
-          </div>
-
           <div className="flex-1 flex overflow-hidden">
             {/* Main Image Area - Optimized space */}
-            <div className="flex-1 p-6 flex flex-col items-center justify-center relative min-w-0">
-              <div className="relative w-full h-full max-h-[calc(100vh-240px)] flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-slate-800 dark:to-slate-900 rounded-xl">
+            <div className="flex-1 p-4 flex flex-col relative min-w-0">
+              {/* Customer name and date - compact header */}
+              <div className="text-center mb-3">
+                <h2 className="text-lg font-bold text-slate-800 dark:text-white">{selectedSession.customerDetails.name}</h2>
+                <p className="text-sm text-slate-600 dark:text-slate-300">{selectedSession.date}</p>
+              </div>
+              
+              <div className="relative flex-1 flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-slate-800 dark:to-slate-900 rounded-xl">
                 <img
                   src={selectedSession.images[currentImageIndex]}
                   alt="Session photo"
@@ -298,23 +293,23 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
             </div>
 
             {/* Right Sidebar - Enhanced Thumbnails */}
-            <div className="w-72 p-6 border-l border-border bg-gradient-to-b from-gray-50 to-gray-100 dark:from-slate-700 dark:to-slate-800 overflow-y-auto">
-              <h3 className="text-lg font-bold mb-6 text-slate-800 dark:text-white">Photos ({selectedSession.images.length})</h3>
-              <div className="space-y-4">
+            <div className="w-64 p-4 border-l border-border bg-gradient-to-b from-gray-50 to-gray-100 dark:from-slate-700 dark:to-slate-800 overflow-y-auto">
+              <h3 className="text-base font-bold mb-4 text-slate-800 dark:text-white">Photos ({selectedSession.images.length})</h3>
+              <div className="grid grid-cols-2 gap-3">
                 {selectedSession.images.map((image, index) => (
                   <div
                     key={index}
                     onClick={() => setCurrentImageIndex(index)}
-                    className={`cursor-pointer rounded-xl overflow-hidden border-2 transition-all duration-200 hover:scale-[1.02] ${
+                    className={`cursor-pointer rounded-lg overflow-hidden border-2 transition-all duration-200 hover:scale-[1.02] ${
                       currentImageIndex === index
-                        ? "border-blue-500 shadow-xl ring-4 ring-blue-200 dark:ring-blue-800"
-                        : "border-gray-300 dark:border-slate-600 hover:border-blue-400 hover:shadow-lg"
+                        ? "border-blue-500 shadow-lg ring-2 ring-blue-200 dark:ring-blue-800"
+                        : "border-gray-300 dark:border-slate-600 hover:border-blue-400 hover:shadow-md"
                     }`}
                   >
                     <img
                       src={image}
                       alt={`Thumbnail ${index + 1}`}
-                      className="w-full h-40 object-cover transition-transform duration-200"
+                      className="w-full h-24 object-cover transition-transform duration-200"
                       loading="eager"
                     />
                   </div>
