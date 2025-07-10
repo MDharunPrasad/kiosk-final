@@ -1,13 +1,5 @@
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -24,11 +16,8 @@ function AuthDialog({ onLogin }: { onLogin?: (role: string) => void }) {
   };
 
   return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button variant="outline" className="px-8 py-3 text-lg">Login</Button>
-      </DialogTrigger>
-      <DialogContent>
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="w-full max-w-[400px] p-6 border bg-background rounded-xl shadow-lg shadow-black/5">
         <div className="flex flex-col items-center gap-2">
           <div
             className="flex size-11 shrink-0 items-center justify-center rounded-full border border-border"
@@ -45,19 +34,19 @@ function AuthDialog({ onLogin }: { onLogin?: (role: string) => void }) {
               <circle cx="16" cy="16" r="12" fill="none" strokeWidth="8" />
             </svg>
           </div>
-          <DialogHeader>
-            <DialogTitle className="sm:text-center">Welcome back</DialogTitle>
-            <DialogDescription className="sm:text-center">
+          <div className="flex flex-col space-y-1.5 text-center">
+            <h2 className="text-lg font-semibold tracking-tight">Welcome back</h2>
+            <p className="text-sm text-muted-foreground">
               Enter your credentials to login to your account.
-            </DialogDescription>
-          </DialogHeader>
+            </p>
+          </div>
         </div>
 
         <form className="space-y-5">
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor={`${id}-email`}>Email</Label>
-              <Input id={`${id}-email`} placeholder="hi@yourcompany.com" type="email" required />
+              <Label htmlFor={`${id}-username`}>Username</Label>
+              <Input id={`${id}-username`} placeholder="Enter your username" type="text" required />
             </div>
             <div className="space-y-2">
               <Label htmlFor={`${id}-password`}>Password</Label>
@@ -104,8 +93,8 @@ function AuthDialog({ onLogin }: { onLogin?: (role: string) => void }) {
             Sign in
           </Button>
         </form>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>
   );
 }
 
