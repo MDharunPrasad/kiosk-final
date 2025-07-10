@@ -160,9 +160,9 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
         </div>
       </div>
 
-      <div className="flex flex-1">
+      <div className="flex flex-1 max-h-screen overflow-hidden">
         {/* Left Sidebar */}
-        <div className="w-80 bg-white dark:bg-slate-800 border-r border-border p-6 flex flex-col h-[calc(100vh-80px)]">
+        <div className="w-80 bg-white dark:bg-slate-800 border-r border-border p-6 flex flex-col" style={{ height: 'calc(100vh - 80px)' }}>
         <h1 className="text-2xl font-bold mb-6">Sessions</h1>
         
         {/* Search */}
@@ -258,20 +258,23 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
                 <p className="text-sm text-slate-600 dark:text-slate-300">{selectedSession.date}</p>
               </div>
               
-              <div className="relative flex-1 flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-slate-800 dark:to-slate-900 rounded-xl overflow-hidden">
-                <div className="flex items-center justify-center w-full h-full p-4">
+              <div className="relative flex-1 flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-slate-800 dark:to-slate-900 rounded-xl overflow-hidden" style={{ height: 'calc(100vh - 200px)' }}>
+                <div className="flex items-center justify-center w-full h-full p-6">
                   <img
                     src={selectedSession.images[currentImageIndex]}
                     alt="Session photo"
                     className="max-w-full max-h-full object-contain rounded-lg shadow-2xl transition-opacity duration-200"
                     style={{
-                      aspectRatio: 'auto',
                       maxWidth: '100%',
                       maxHeight: '100%',
                       width: 'auto',
                       height: 'auto'
                     }}
                     loading="eager"
+                    onError={(e) => {
+                      console.log(`Failed to load main image: ${selectedSession.images[currentImageIndex]}`);
+                      e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgZmlsbD0iIzk5YTNhZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIG5vdCBmb3VuZDwvdGV4dD48L3N2Zz4=';
+                    }}
                   />
                 </div>
                 
@@ -302,7 +305,7 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
             </div>
 
             {/* Right Sidebar - Enhanced Thumbnails */}
-            <div className="w-72 p-4 border-l border-border bg-gradient-to-b from-gray-50 to-gray-100 dark:from-slate-700 dark:to-slate-800 overflow-y-auto">
+            <div className="w-80 p-4 border-l border-border bg-gradient-to-b from-gray-50 to-gray-100 dark:from-slate-700 dark:to-slate-800 overflow-y-auto">
               <h3 className="text-base font-bold mb-4 text-slate-800 dark:text-white">Photos ({selectedSession.images.length})</h3>
               <div className="grid grid-cols-2 gap-4">
                 {selectedSession.images.map((image, index) => (
@@ -318,8 +321,12 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
                     <img
                       src={image}
                       alt={`Thumbnail ${index + 1}`}
-                      className="w-full h-32 object-cover transition-transform duration-200"
-                      loading="eager"
+                      className="w-full h-36 object-cover transition-transform duration-200"
+                      loading="lazy"
+                      onError={(e) => {
+                        console.log(`Failed to load image: ${image}`);
+                        e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZGRkIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIG5vdCBmb3VuZDwvdGV4dD48L3N2Zz4=';
+                      }}
                     />
                   </div>
                 ))}
