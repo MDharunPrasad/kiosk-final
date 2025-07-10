@@ -107,16 +107,14 @@ export function CreateSessionModal({ isOpen, onClose, onSessionCreated }: Create
             <Label className="text-sm font-medium">Session Photos</Label>
             
             {/* Upload Button */}
-            <div 
+            <Button 
               onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-primary/50 rounded-lg p-8 text-center cursor-pointer hover:border-primary transition-colors bg-primary/5"
+              className="w-full h-16 bg-blue-600 hover:bg-blue-700 text-white text-lg font-medium"
+              size="lg"
             >
-              <Upload className="mx-auto h-12 w-12 text-primary mb-4" />
-              <p className="text-lg font-medium text-primary mb-2">Upload Photos</p>
-              <p className="text-sm text-muted-foreground">
-                Click to select photos from your computer
-              </p>
-            </div>
+              <Upload className="mr-3 h-6 w-6" />
+              Upload Photos
+            </Button>
 
             <input
               ref={fileInputRef}

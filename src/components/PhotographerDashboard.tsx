@@ -122,7 +122,7 @@ export function PhotographerDashboard() {
   return (
     <div className="min-h-screen bg-background flex">
       {/* Left Sidebar */}
-      <div className="w-80 bg-background border-r border-border p-6">
+      <div className="w-80 bg-background border-r border-border p-6 flex flex-col h-screen">
         <h1 className="text-2xl font-bold mb-6">Sessions</h1>
         
         {/* Search */}
@@ -148,7 +148,7 @@ export function PhotographerDashboard() {
         </div>
 
         {/* Sessions List */}
-        <div className="space-y-3 mb-6">
+        <div className="flex-1 space-y-3 mb-6">
           {filteredSessions.map((session) => (
             <div
               key={session.id}
@@ -172,45 +172,36 @@ export function PhotographerDashboard() {
           ))}
         </div>
 
-        {/* New Session Button */}
-        <Button 
-          onClick={() => setIsCreateModalOpen(true)}
-          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          New Session
-        </Button>
+        {/* New Session Button - Moved to bottom */}
+        <div className="mt-auto">
+          <Button 
+            onClick={() => setIsCreateModalOpen(true)}
+            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            New Session
+          </Button>
+        </div>
       </div>
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         {/* Header */}
         <div className="border-b border-border p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold">{selectedSession.name}</h1>
-              <p className="text-muted-foreground">{selectedSession.date}</p>
-            </div>
-            <div className="flex gap-4 text-sm">
-              <Button variant="ghost" size="sm">🔄 Crop</Button>
-              <Button variant="ghost" size="sm">☀️ Brightness</Button>
-              <Button variant="ghost" size="sm">🌗 Contrast</Button>
-              <Button variant="ghost" size="sm">🎨 Saturation</Button>
-              <Button variant="ghost" size="sm">🔄 Rotate</Button>
-              <Button variant="ghost" size="sm">🔄 Flip</Button>
-              <Button variant="ghost" size="sm">💧 Watermark</Button>
-            </div>
+          <div className="text-center">
+            <h1 className="text-3xl font-bold">{selectedSession.name}</h1>
+            <p className="text-muted-foreground">{selectedSession.date}</p>
           </div>
         </div>
 
         <div className="flex-1 flex">
           {/* Main Image Area */}
           <div className="flex-1 p-6 flex flex-col items-center justify-center relative">
-            <div className="relative w-full max-w-4xl">
+            <div className="relative w-full h-full max-h-[calc(100vh-240px)] flex items-center justify-center">
               <img
                 src={selectedSession.images[currentImageIndex]}
                 alt="Session photo"
-                className="w-full h-auto rounded-lg shadow-lg"
+                className="max-w-full max-h-full object-contain rounded-lg shadow-lg"
               />
               
               {/* Navigation Buttons */}
@@ -268,7 +259,7 @@ export function PhotographerDashboard() {
                   <img
                     src={image}
                     alt={`Thumbnail ${index + 1}`}
-                    className="w-full h-24 object-cover"
+                    className="w-full h-32 object-cover"
                   />
                 </div>
               ))}
@@ -276,20 +267,6 @@ export function PhotographerDashboard() {
           </div>
         </div>
 
-        {/* Bottom Toolbar */}
-        <div className="border-t border-border p-4">
-          <div className="flex items-center justify-center gap-4">
-            <Button variant="ghost" size="sm">🔷</Button>
-            <Button variant="ghost" size="sm">⬜</Button>
-            <Button variant="ghost" size="sm">🔳</Button>
-            <Button variant="ghost" size="sm">⬜</Button>
-            <Button variant="ghost" size="sm">📁</Button>
-            <Button variant="ghost" size="sm">📷</Button>
-          </div>
-          <div className="text-center mt-2">
-            <span className="text-sm text-muted-foreground">Hidden</span>
-          </div>
-        </div>
       </div>
 
       {/* Create Session Modal */}
