@@ -10,15 +10,23 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useId } from "react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useId, useState } from "react";
 
-function AuthDialog() {
+function AuthDialog({ onLogin }: { onLogin?: (role: string) => void }) {
   const id = useId();
+  const [selectedRole, setSelectedRole] = useState<string>("");
+
+  const handleLogin = () => {
+    if (selectedRole && onLogin) {
+      onLogin(selectedRole);
+    }
+  };
 
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="outline">Sign in</Button>
+        <Button variant="outline" className="px-8 py-3 text-lg">Login</Button>
       </DialogTrigger>
       <DialogContent>
         <div className="flex flex-col items-center gap-2">
@@ -60,6 +68,19 @@ function AuthDialog() {
                 required
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor={`${id}-role`}>Role</Label>
+              <Select value={selectedRole} onValueChange={setSelectedRole}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select your role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="photographer">Photographer</SelectItem>
+                  <SelectItem value="counter-staff">Counter Staff</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           
           <div className="flex justify-between gap-2">
@@ -74,7 +95,12 @@ function AuthDialog() {
             </a>
           </div>
           
-          <Button type="button" className="w-full">
+          <Button 
+            type="button" 
+            className="w-full" 
+            onClick={handleLogin}
+            disabled={!selectedRole}
+          >
             Sign in
           </Button>
         </form>
