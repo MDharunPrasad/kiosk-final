@@ -24,7 +24,7 @@ const mockSessions: Session[] = [
     date: "2024-07-20",
     type: "Family",
     images: [
-      "/lovable-uploads/a03d6497-7d75-4799-898d-62da65caad0f.png",
+      "lovable-uploads/6088a135-d271-4528-8e1b-a06cbbe58d03.png", // replaced with a valid local image
       "https://images.unsplash.com/photo-1472396961693-142e6e269027?w=800&h=600&fit=crop",
       "https://images.unsplash.com/photo-1582562124811-c09040d0a901?w=800&h=600&fit=crop",
     ],
@@ -92,6 +92,7 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
   const [selectedDate, setSelectedDate] = useState("");
   const [showCreateSession, setShowCreateSession] = useState(false);
   const [sessions, setSessions] = useState<Session[]>(mockSessions);
+  const [showUpdateSuccess, setShowUpdateSuccess] = useState(false);
 
   const handleLogout = () => {
     window.location.reload();
@@ -283,22 +284,32 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
               
               <div className="relative bg-gradient-to-br from-gray-50 to-gray-100 dark:from-slate-800 dark:to-slate-900 rounded-xl overflow-hidden" style={{ height: 'calc(100vh - 200px)' }}>
                 <div className="absolute inset-0 flex items-center justify-center p-4">
-                  <img
-                    src={selectedSession.images[currentImageIndex]}
-                    alt="Session photo"
-                    className="object-contain rounded-lg shadow-2xl transition-opacity duration-200"
-                    style={{
-                      maxWidth: '100%',
-                      maxHeight: '100%',
-                      width: 'auto',
-                      height: 'auto'
-                    }}
-                    loading="eager"
-                    onError={(e) => {
-                      console.log(`Failed to load main image: ${selectedSession.images[currentImageIndex]}`);
-                      e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgZmlsbD0iIzk5YTNhZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIG5vdCBmb3VuZDwvdGV4dD48L3N2Zz4=';
-                    }}
-                  />
+                  {selectedSession.images.length === 0 ? (
+                    <span className="text-gray-400">No images available</span>
+                  ) : (
+                    <img
+                      src={selectedSession.images[currentImageIndex]}
+                      alt="Session photo"
+                      className="object-contain rounded-lg shadow-2xl transition-opacity duration-200"
+                      style={{
+                        maxWidth: '100%',
+                        maxHeight: '100%',
+                        width: 'auto',
+                        height: 'auto'
+                      }}
+                      loading="eager"
+                      onError={(e) => {
+                        // If image fails, try next image or show fallback
+                        const newImages = selectedSession.images.filter((_, i) => i !== currentImageIndex);
+                        if (newImages.length > 0) {
+                          setSelectedSession({ ...selectedSession, images: newImages });
+                          setCurrentImageIndex(0);
+                        } else {
+                          e.currentTarget.style.display = 'none';
+                        }
+                      }}
+                    />
+                  )}
                 </div>
                 
                 {/* Navigation Buttons */}
@@ -330,12 +341,31 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
             {/* Right Sidebar - Enhanced Thumbnails */}
             <div className="w-80 p-4 border-l border-border bg-gradient-to-b from-gray-50 to-gray-100 dark:from-slate-700 dark:to-slate-800 overflow-y-auto">
               <h3 className="text-base font-bold mb-4 text-slate-800 dark:text-white">Photos ({selectedSession.images.length})</h3>
+              <Button
+                className="mb-4 w-full bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all"
+                onClick={() => {
+                  // Save the updated images to the selected session
+                  const updatedSessions = sessions.map(session => {
+                    if (session.id === selectedSession.id) {
+                      return { ...session, images: selectedSession.images };
+                    }
+                    return session;
+                  });
+                  setSessions(updatedSessions);
+                  setShowUpdateSuccess(true);
+                  setTimeout(() => setShowUpdateSuccess(false), 2000);
+                }}
+              >
+                Update Session
+              </Button>
+              {showUpdateSuccess && (
+                <div className="mb-2 text-green-600 font-semibold text-center">Done successfully!</div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 {selectedSession.images.map((image, index) => (
                   <div
                     key={index}
-                    onClick={() => setCurrentImageIndex(index)}
-                    className={`cursor-pointer rounded-lg overflow-hidden border-2 transition-all duration-200 hover:scale-[1.02] ${
+                    className={`relative cursor-pointer rounded-lg overflow-hidden border-2 transition-all duration-200 hover:scale-[1.02] ${
                       currentImageIndex === index
                         ? "border-blue-500 shadow-lg ring-2 ring-blue-200 dark:ring-blue-800"
                         : "border-gray-300 dark:border-slate-600 hover:border-blue-400 hover:shadow-md"
@@ -346,11 +376,47 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
                       alt={`Thumbnail ${index + 1}`}
                       className="w-full h-32 object-cover transition-transform duration-200"
                       loading="lazy"
+                      onClick={() => setCurrentImageIndex(index)}
                       onError={(e) => {
-                        console.log(`Failed to load image: ${image}`);
-                        e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZGRkIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIG5vdCBmb3VuZDwvdGV4dD48L3N2Zz4=';
+                        // Remove broken image from session
+                        const newImages = selectedSession.images.filter((_, i) => i !== index);
+                        setSelectedSession({ ...selectedSession, images: newImages });
+                        // Also update in sessions state
+                        const updatedSessions = sessions.map(session => {
+                          if (session.id === selectedSession.id) {
+                            return { ...session, images: newImages };
+                          }
+                          return session;
+                        });
+                        setSessions(updatedSessions);
+                        if (currentImageIndex >= newImages.length) {
+                          setCurrentImageIndex(Math.max(0, newImages.length - 1));
+                        }
                       }}
                     />
+                    <button
+                      className="absolute top-1 right-1 bg-white/80 hover:bg-red-100 text-red-600 rounded-full p-1 shadow"
+                      style={{ zIndex: 2 }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const newImages = selectedSession.images.filter((_, i) => i !== index);
+                        setSelectedSession({ ...selectedSession, images: newImages });
+                        // Also update in sessions state
+                        const updatedSessions = sessions.map(session => {
+                          if (session.id === selectedSession.id) {
+                            return { ...session, images: newImages };
+                          }
+                          return session;
+                        });
+                        setSessions(updatedSessions);
+                        if (currentImageIndex >= newImages.length) {
+                          setCurrentImageIndex(Math.max(0, newImages.length - 1));
+                        }
+                      }}
+                      title="Delete image"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
                   </div>
                 ))}
               </div>
