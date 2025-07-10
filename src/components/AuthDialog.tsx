@@ -10,11 +10,10 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useId, useState } from "react";
+import { useId } from "react";
 
 function AuthDialog() {
   const id = useId();
-  const [isLogin, setIsLogin] = useState(true);
 
   return (
     <Dialog>
@@ -39,25 +38,15 @@ function AuthDialog() {
             </svg>
           </div>
           <DialogHeader>
-            <DialogTitle className="sm:text-center">
-              {isLogin ? "Welcome back" : "Create your account"}
-            </DialogTitle>
+            <DialogTitle className="sm:text-center">Welcome back</DialogTitle>
             <DialogDescription className="sm:text-center">
-              {isLogin 
-                ? "Enter your credentials to login to your account." 
-                : "Enter your details to create a new account."}
+              Enter your credentials to login to your account.
             </DialogDescription>
           </DialogHeader>
         </div>
 
         <form className="space-y-5">
           <div className="space-y-4">
-            {!isLogin && (
-              <div className="space-y-2">
-                <Label htmlFor={`${id}-name`}>Full Name</Label>
-                <Input id={`${id}-name`} placeholder="John Doe" type="text" required />
-              </div>
-            )}
             <div className="space-y-2">
               <Label htmlFor={`${id}-email`}>Email</Label>
               <Input id={`${id}-email`} placeholder="hi@yourcompany.com" type="email" required />
@@ -71,64 +60,24 @@ function AuthDialog() {
                 required
               />
             </div>
-            {!isLogin && (
-              <div className="space-y-2">
-                <Label htmlFor={`${id}-confirm-password`}>Confirm Password</Label>
-                <Input
-                  id={`${id}-confirm-password`}
-                  placeholder="Confirm your password"
-                  type="password"
-                  required
-                />
-              </div>
-            )}
           </div>
           
-          {isLogin ? (
-            <div className="flex justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Checkbox id={`${id}-remember`} />
-                <Label htmlFor={`${id}-remember`} className="font-normal text-muted-foreground">
-                  Remember me
-                </Label>
-              </div>
-              <a className="text-sm underline hover:no-underline" href="#">
-                Forgot password?
-              </a>
-            </div>
-          ) : (
-            <div className="flex items-start gap-2">
-              <Checkbox id={`${id}-terms`} className="mt-1" />
-              <Label htmlFor={`${id}-terms`} className="font-normal text-muted-foreground text-sm leading-5">
-                I agree to the{" "}
-                <a className="underline hover:no-underline" href="#">
-                  Terms of Service
-                </a>{" "}
-                and{" "}
-                <a className="underline hover:no-underline" href="#">
-                  Privacy Policy
-                </a>
+          <div className="flex justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Checkbox id={`${id}-remember`} />
+              <Label htmlFor={`${id}-remember`} className="font-normal text-muted-foreground">
+                Remember me
               </Label>
             </div>
-          )}
+            <a className="text-sm underline hover:no-underline" href="#">
+              Forgot password?
+            </a>
+          </div>
           
           <Button type="button" className="w-full">
-            {isLogin ? "Sign in" : "Create account"}
+            Sign in
           </Button>
         </form>
-
-        <div className="flex items-center gap-3 before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border">
-          <span className="text-xs text-muted-foreground">Or</span>
-        </div>
-
-        <Button 
-          variant="outline" 
-          type="button"
-          onClick={() => setIsLogin(!isLogin)}
-          className="w-full"
-        >
-          {isLogin ? "Create new account" : "Already have an account? Sign in"}
-        </Button>
       </DialogContent>
     </Dialog>
   );
