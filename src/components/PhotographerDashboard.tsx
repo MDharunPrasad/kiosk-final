@@ -86,7 +86,15 @@ export function PhotographerDashboard() {
   const [showCreateSession, setShowCreateSession] = useState(false);
   const [sessions, setSessions] = useState<Session[]>(mockSessions);
 
-  const filteredSessions = mockSessions.filter(session => {
+  const handleLogout = () => {
+    window.location.reload();
+  };
+
+  const handleBackToLogin = () => {
+    window.location.reload();
+  };
+
+  const filteredSessions = sessions.filter(session => {
     const matchesSearch = session.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          session.customerDetails.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesDate = !selectedDate || session.date === selectedDate;
@@ -121,9 +129,36 @@ export function PhotographerDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex">
-      {/* Left Sidebar */}
-      <div className="w-80 bg-background border-r border-border p-6 flex flex-col h-screen">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-900 dark:to-slate-800 flex flex-col">
+      {/* Top Header */}
+      <div className="bg-white dark:bg-slate-800 border-b border-border p-4 flex justify-between items-center shadow-sm">
+        <button 
+          onClick={handleBackToLogin}
+          className="flex items-center gap-2 text-blue-600 hover:text-blue-800 transition-colors"
+        >
+          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+            <span className="text-white font-bold text-sm">📷</span>
+          </div>
+          <span className="text-xl font-bold">Photo Kiosk</span>
+        </button>
+        
+        <div className="flex items-center gap-4">
+          <div className="text-right">
+            <p className="font-medium text-slate-800 dark:text-slate-200">John Photographer</p>
+            <p className="text-sm text-slate-600 dark:text-slate-400">{new Date().toLocaleDateString()}</p>
+          </div>
+          <button 
+            onClick={handleLogout}
+            className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
+          >
+            Logout
+          </button>
+        </div>
+      </div>
+
+      <div className="flex flex-1">
+        {/* Left Sidebar */}
+        <div className="w-80 bg-white dark:bg-slate-800 border-r border-border p-6 flex flex-col h-[calc(100vh-80px)]">
         <h1 className="text-2xl font-bold mb-6">Sessions</h1>
         
         {/* Search */}
@@ -173,11 +208,11 @@ export function PhotographerDashboard() {
           ))}
         </div>
 
-        {/* New Session Button - Moved to bottom */}
-        <div className="mt-auto">
+        {/* New Session Button - Moved up slightly from bottom */}
+        <div className="mt-auto mb-4">
           <Button 
             onClick={() => setShowCreateSession(true)}
-            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3"
+            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-3 shadow-md hover:shadow-lg transition-all"
           >
             <Plus className="mr-2 h-4 w-4" />
             New Session
@@ -190,18 +225,31 @@ export function PhotographerDashboard() {
         <CreateSessionForm
           onCancel={() => setShowCreateSession(false)}
           onSessionCreated={(newSession) => {
-            // Handle new session creation
-            console.log("New session created:", newSession);
+            const sessionToAdd = {
+              id: (sessions.length + 1).toString(),
+              name: `${newSession.customerName} Session`,
+              date: newSession.date,
+              type: "Custom",
+              images: newSession.photos.map(file => URL.createObjectURL(file)),
+              customerDetails: {
+                name: newSession.customerName,
+                location: newSession.location,
+                date: newSession.date
+              }
+            };
+            setSessions([sessionToAdd, ...sessions]);
+            setSelectedSession(sessionToAdd);
+            setCurrentImageIndex(0);
             setShowCreateSession(false);
           }}
         />
       ) : (
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col bg-white dark:bg-slate-800">
           {/* Header */}
-          <div className="border-b border-border p-6">
+          <div className="border-b border-border p-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-700 dark:to-slate-600">
             <div className="text-center">
-              <h1 className="text-3xl font-bold">{selectedSession.name}</h1>
-              <p className="text-muted-foreground">{selectedSession.date}</p>
+              <h1 className="text-2xl font-bold text-slate-800 dark:text-white">{selectedSession.customerDetails.name}</h1>
+              <p className="text-slate-600 dark:text-slate-300">{selectedSession.date}</p>
             </div>
           </div>
 
@@ -240,37 +288,26 @@ export function PhotographerDashboard() {
                 )}
               </div>
 
-              {/* Customer Details */}
-              <div className="mt-6 text-center">
-                <h2 className="text-xl font-semibold">{selectedSession.customerDetails.name}</h2>
-                <p className="text-muted-foreground">
-                  {selectedSession.customerDetails.location} • {selectedSession.customerDetails.date}
-                </p>
-              </div>
-
-              {/* Status */}
-              <div className="mt-4 text-center">
-                <span className="text-sm text-muted-foreground">Hidden</span>
-              </div>
             </div>
 
             {/* Right Sidebar - Thumbnails */}
-            <div className="w-80 p-6 border-l border-border">
+            <div className="w-96 p-6 border-l border-border bg-gray-50 dark:bg-slate-700">
+              <h3 className="text-lg font-semibold mb-4 text-slate-800 dark:text-white">Photos ({selectedSession.images.length})</h3>
               <div className="grid grid-cols-2 gap-4">
                 {selectedSession.images.map((image, index) => (
                   <div
                     key={index}
                     onClick={() => setCurrentImageIndex(index)}
-                    className={`cursor-pointer rounded-lg overflow-hidden border-2 transition-colors ${
+                    className={`cursor-pointer rounded-lg overflow-hidden border-3 transition-all hover:scale-105 ${
                       currentImageIndex === index
-                        ? "border-primary"
-                        : "border-transparent hover:border-muted-foreground"
+                        ? "border-blue-500 shadow-lg"
+                        : "border-gray-300 hover:border-blue-300"
                     }`}
                   >
                     <img
                       src={image}
                       alt={`Thumbnail ${index + 1}`}
-                      className="w-full h-32 object-cover"
+                      className="w-full h-40 object-cover"
                     />
                   </div>
                 ))}
@@ -279,7 +316,7 @@ export function PhotographerDashboard() {
           </div>
         </div>
       )}
-
+      </div>
     </div>
   );
 }

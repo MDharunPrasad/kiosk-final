@@ -36,9 +36,6 @@ function AuthDialog({ onLogin }: { onLogin?: (role: string) => void }) {
           </div>
           <div className="flex flex-col space-y-1.5 text-center">
             <h2 className="text-lg font-semibold tracking-tight">Welcome back</h2>
-            <p className="text-sm text-muted-foreground">
-              Enter your credentials to login to your account.
-            </p>
           </div>
         </div>
 

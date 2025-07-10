@@ -47,28 +47,28 @@ export function CreateSessionForm({ onCancel, onSessionCreated }: CreateSessionF
   };
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="flex-1 flex flex-col bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-slate-700">
       {/* Header */}
-      <div className="border-b border-border p-6">
+      <div className="border-b border-border p-6 bg-white dark:bg-slate-800 shadow-sm">
         <div className="flex items-center gap-4">
           <Button 
             variant="ghost" 
             size="icon"
             onClick={onCancel}
-            className="hover:bg-muted"
+            className="hover:bg-blue-100 dark:hover:bg-slate-700 text-blue-600"
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="text-center flex-1">
-            <h1 className="text-3xl font-bold">Create New Photo Session</h1>
-            <p className="text-muted-foreground">Fill in the details below to start a new photography session.</p>
+            <h1 className="text-3xl font-bold text-slate-800 dark:text-white">Create New Photo Session</h1>
+            <p className="text-slate-600 dark:text-slate-300">Enter customer details and upload photos for the new session.</p>
           </div>
         </div>
       </div>
 
       {/* Form Content */}
-      <div className="flex-1 p-8">
-        <div className="max-w-2xl mx-auto space-y-8">
+      <div className="flex-1 p-8 flex items-center justify-center">
+        <div className="max-w-2xl w-full bg-white dark:bg-slate-800 rounded-xl shadow-lg p-8 space-y-8">
           {/* Customer Name */}
           <div className="space-y-3">
             <Label htmlFor="customer-name" className="text-lg font-medium">
@@ -113,7 +113,7 @@ export function CreateSessionForm({ onCancel, onSessionCreated }: CreateSessionF
             {/* Upload Button */}
             <Button 
               onClick={() => fileInputRef.current?.click()}
-              className="w-full h-16 bg-blue-600 hover:bg-blue-700 text-white text-lg font-medium"
+              className="w-full h-16 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-lg font-medium shadow-lg hover:shadow-xl transition-all"
               size="lg"
             >
               <Upload className="mr-3 h-6 w-6" />
@@ -159,14 +159,14 @@ export function CreateSessionForm({ onCancel, onSessionCreated }: CreateSessionF
             )}
           </div>
 
-          {/* Complete Session Button */}
+          {/* Create Session Button */}
           <div className="pt-6">
             <Button
               onClick={handleCreateSession}
-              className="w-full h-16 bg-green-600 hover:bg-green-700 text-white text-lg font-medium"
+              className="w-full h-16 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white text-lg font-medium shadow-lg hover:shadow-xl transition-all"
               disabled={!customerName || !location || uploadedFiles.length === 0}
             >
-              ✓ Complete Session
+              Create Session
             </Button>
           </div>
         </div>
