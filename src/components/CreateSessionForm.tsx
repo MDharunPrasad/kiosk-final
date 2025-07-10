@@ -67,8 +67,8 @@ export function CreateSessionForm({ onCancel, onSessionCreated }: CreateSessionF
       </div>
 
       {/* Form Content */}
-      <div className="flex-1 p-8 flex items-center justify-center">
-        <div className="max-w-2xl w-full bg-white dark:bg-slate-800 rounded-xl shadow-lg p-8 space-y-8">
+      <div className="flex-1 p-6 flex items-center justify-center">
+        <div className="max-w-xl w-full bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 space-y-6">
           {/* Customer Name */}
           <div className="space-y-3">
             <Label htmlFor="customer-name" className="text-lg font-medium">

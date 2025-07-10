@@ -5,13 +5,14 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useId, useState } from "react";
 
-function AuthDialog({ onLogin }: { onLogin?: (role: string) => void }) {
+function AuthDialog({ onLogin }: { onLogin?: (role: string, username?: string) => void }) {
   const id = useId();
   const [selectedRole, setSelectedRole] = useState<string>("");
+  const [username, setUsername] = useState<string>("");
 
   const handleLogin = () => {
     if (selectedRole && onLogin) {
-      onLogin(selectedRole);
+      onLogin(selectedRole, username);
     }
   };
 
@@ -43,7 +44,14 @@ function AuthDialog({ onLogin }: { onLogin?: (role: string) => void }) {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor={`${id}-username`}>Username</Label>
-              <Input id={`${id}-username`} placeholder="Enter your username" type="text" required />
+              <Input 
+                id={`${id}-username`} 
+                placeholder="Enter your username" 
+                type="text" 
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required 
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor={`${id}-password`}>Password</Label>
@@ -69,16 +77,11 @@ function AuthDialog({ onLogin }: { onLogin?: (role: string) => void }) {
             </div>
           </div>
           
-          <div className="flex justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <Checkbox id={`${id}-remember`} />
-              <Label htmlFor={`${id}-remember`} className="font-normal text-muted-foreground">
-                Remember me
-              </Label>
-            </div>
-            <a className="text-sm underline hover:no-underline" href="#">
-              Forgot password?
-            </a>
+          <div className="flex items-center gap-2">
+            <Checkbox id={`${id}-remember`} />
+            <Label htmlFor={`${id}-remember`} className="font-normal text-muted-foreground">
+              Remember me
+            </Label>
           </div>
           
           <Button 

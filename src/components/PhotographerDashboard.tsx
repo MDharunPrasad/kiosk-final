@@ -78,7 +78,11 @@ const mockSessions: Session[] = [
   }
 ];
 
-export function PhotographerDashboard() {
+interface PhotographerDashboardProps {
+  username?: string;
+}
+
+export function PhotographerDashboard({ username }: PhotographerDashboardProps) {
   const [selectedSession, setSelectedSession] = useState<Session>(mockSessions[0]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
@@ -120,12 +124,12 @@ export function PhotographerDashboard() {
 
   const getSessionIcon = (type: string) => {
     const icons = {
-      "Family": "👨‍👩‍👧‍👦",
-      "Wedding": "💒",
-      "Graduation": "🎓",
-      "Corporate": "🏢"
+      "Family": "F",
+      "Wedding": "W",
+      "Graduation": "G",
+      "Corporate": "C"
     };
-    return icons[type as keyof typeof icons] || "📸";
+    return icons[type as keyof typeof icons] || "S";
   };
 
   return (
@@ -137,14 +141,14 @@ export function PhotographerDashboard() {
           className="flex items-center gap-2 text-blue-600 hover:text-blue-800 transition-colors"
         >
           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-sm">📷</span>
+            <span className="text-white font-bold text-sm">PK</span>
           </div>
           <span className="text-xl font-bold">Photo Kiosk</span>
         </button>
         
-        <div className="flex items-center gap-4">
-          <div className="text-right">
-            <p className="font-medium text-slate-800 dark:text-slate-200">John Photographer</p>
+        <div className="flex items-center gap-4 mr-4">
+          <div className="text-left bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-700 dark:to-slate-600 px-4 py-2 rounded-lg">
+            <p className="font-semibold text-slate-800 dark:text-slate-200">{username || "Photographer"}</p>
             <p className="text-sm text-slate-600 dark:text-slate-400">{new Date().toLocaleDateString()}</p>
           </div>
           <button 
@@ -183,24 +187,24 @@ export function PhotographerDashboard() {
           />
         </div>
 
-        {/* Sessions List */}
-        <div className="flex-1 space-y-3 mb-6">
+        {/* Sessions List - Scrollable with max 8 sessions */}
+        <div className="flex-1 overflow-y-auto max-h-[400px] space-y-3 mb-6">
           {filteredSessions.map((session) => (
             <div
               key={session.id}
               onClick={() => handleSessionSelect(session)}
-              className={`p-4 rounded-lg cursor-pointer transition-colors ${
+              className={`p-3 rounded-lg cursor-pointer transition-all hover:scale-105 ${
                 selectedSession.id === session.id
-                  ? "bg-primary/10 border border-primary/20"
-                  : "bg-muted/50 hover:bg-muted"
+                  ? "bg-gradient-to-r from-blue-100 to-indigo-100 dark:from-blue-900 dark:to-indigo-900 border border-blue-300 shadow-md"
+                  : "bg-muted/50 hover:bg-muted border border-transparent"
               }`}
             >
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-background border border-border flex items-center justify-center text-lg">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 text-white border border-border flex items-center justify-center text-sm font-bold">
                   {getSessionIcon(session.type)}
                 </div>
-                <div className="flex-1">
-                  <h3 className="font-medium text-sm">{session.name}</h3>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-medium text-xs truncate">{session.customerDetails.name}</h3>
                   <p className="text-xs text-muted-foreground">{session.date}</p>
                 </div>
               </div>
@@ -208,8 +212,8 @@ export function PhotographerDashboard() {
           ))}
         </div>
 
-        {/* New Session Button - Moved up slightly from bottom */}
-        <div className="mt-auto mb-4">
+        {/* New Session Button - Static position */}
+        <div className="border-t border-border pt-4">
           <Button 
             onClick={() => setShowCreateSession(true)}
             className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-3 shadow-md hover:shadow-lg transition-all"
@@ -245,22 +249,22 @@ export function PhotographerDashboard() {
         />
       ) : (
         <div className="flex-1 flex flex-col bg-white dark:bg-slate-800">
-          {/* Header */}
-          <div className="border-b border-border p-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-700 dark:to-slate-600">
+          {/* Header with customer name */}
+          <div className="border-b border-border p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-700 dark:to-slate-600">
             <div className="text-center">
-              <h1 className="text-2xl font-bold text-slate-800 dark:text-white">{selectedSession.customerDetails.name}</h1>
-              <p className="text-slate-600 dark:text-slate-300">{selectedSession.date}</p>
+              <h1 className="text-xl font-bold text-slate-800 dark:text-white">{selectedSession.customerDetails.name}</h1>
             </div>
           </div>
 
-          <div className="flex-1 flex">
-            {/* Main Image Area */}
-            <div className="flex-1 p-6 flex flex-col items-center justify-center relative">
-              <div className="relative w-full h-full max-h-[calc(100vh-240px)] flex items-center justify-center">
+          <div className="flex-1 flex overflow-hidden">
+            {/* Main Image Area - Increased space */}
+            <div className="flex-1 p-4 flex flex-col items-center justify-center relative min-w-0">
+              <div className="relative w-full h-full max-h-[calc(100vh-200px)] flex items-center justify-center">
                 <img
                   src={selectedSession.images[currentImageIndex]}
                   alt="Session photo"
-                  className="max-w-full max-h-full object-contain rounded-lg shadow-lg"
+                  className="max-w-full max-h-full object-contain rounded-lg shadow-lg will-change-transform"
+                  loading="lazy"
                 />
                 
                 {/* Navigation Buttons */}
@@ -269,45 +273,45 @@ export function PhotographerDashboard() {
                     <Button
                       variant="secondary"
                       size="icon"
-                      className="absolute left-4 top-1/2 transform -translate-y-1/2 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
+                      className="absolute left-4 top-1/2 transform -translate-y-1/2 rounded-full bg-white/90 hover:bg-white shadow-lg transition-all"
                       onClick={prevImage}
                       disabled={currentImageIndex === 0}
                     >
-                      <ChevronLeft className="h-6 w-6" />
+                      <ChevronLeft className="h-6 w-6 text-slate-700" />
                     </Button>
                     <Button
                       variant="secondary"
                       size="icon"
-                      className="absolute right-4 top-1/2 transform -translate-y-1/2 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
+                      className="absolute right-4 top-1/2 transform -translate-y-1/2 rounded-full bg-white/90 hover:bg-white shadow-lg transition-all"
                       onClick={nextImage}
                       disabled={currentImageIndex === selectedSession.images.length - 1}
                     >
-                      <ChevronRight className="h-6 w-6" />
+                      <ChevronRight className="h-6 w-6 text-slate-700" />
                     </Button>
                   </>
                 )}
               </div>
-
             </div>
 
-            {/* Right Sidebar - Thumbnails */}
-            <div className="w-96 p-6 border-l border-border bg-gray-50 dark:bg-slate-700">
-              <h3 className="text-lg font-semibold mb-4 text-slate-800 dark:text-white">Photos ({selectedSession.images.length})</h3>
-              <div className="grid grid-cols-2 gap-4">
+            {/* Right Sidebar - Larger Thumbnails */}
+            <div className="w-80 p-4 border-l border-border bg-gray-50 dark:bg-slate-700 overflow-y-auto">
+              <h3 className="text-base font-semibold mb-4 text-slate-800 dark:text-white">Photos ({selectedSession.images.length})</h3>
+              <div className="space-y-3">
                 {selectedSession.images.map((image, index) => (
                   <div
                     key={index}
                     onClick={() => setCurrentImageIndex(index)}
-                    className={`cursor-pointer rounded-lg overflow-hidden border-3 transition-all hover:scale-105 ${
+                    className={`cursor-pointer rounded-lg overflow-hidden border-2 transition-all hover:scale-105 ${
                       currentImageIndex === index
-                        ? "border-blue-500 shadow-lg"
+                        ? "border-blue-500 shadow-lg ring-2 ring-blue-200"
                         : "border-gray-300 hover:border-blue-300"
                     }`}
                   >
                     <img
                       src={image}
                       alt={`Thumbnail ${index + 1}`}
-                      className="w-full h-40 object-cover"
+                      className="w-full h-32 object-cover"
+                      loading="lazy"
                     />
                   </div>
                 ))}

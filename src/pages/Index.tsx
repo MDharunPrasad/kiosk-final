@@ -3,10 +3,10 @@ import { AuthDialog } from "@/components/AuthDialog";
 import { PhotographerDashboard } from "@/components/PhotographerDashboard";
 
 const Index = () => {
-  const [currentUser, setCurrentUser] = useState<{ role: string } | null>(null);
+  const [currentUser, setCurrentUser] = useState<{ role: string; username?: string } | null>(null);
 
-  const handleLogin = (role: string) => {
-    setCurrentUser({ role });
+  const handleLogin = (role: string, username?: string) => {
+    setCurrentUser({ role, username });
   };
 
   const handleLogout = () => {
@@ -14,7 +14,7 @@ const Index = () => {
   };
 
   if (currentUser?.role === "photographer") {
-    return <PhotographerDashboard />;
+    return <PhotographerDashboard username={currentUser.username} />;
   }
 
   if (currentUser?.role === "counter-staff") {
