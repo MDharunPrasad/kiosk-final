@@ -68,7 +68,7 @@ export function CreateSessionForm({ onCancel, onSessionCreated }: CreateSessionF
 
       {/* Form Content */}
       <div className="flex-1 p-6 flex items-center justify-center">
-        <div className="max-w-xl w-full bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 space-y-6">
+        <div className="max-w-lg w-full bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 space-y-5">
           {/* Customer Name */}
           <div className="space-y-3">
             <Label htmlFor="customer-name" className="text-lg font-medium">
@@ -113,10 +113,9 @@ export function CreateSessionForm({ onCancel, onSessionCreated }: CreateSessionF
             {/* Upload Button */}
             <Button 
               onClick={() => fileInputRef.current?.click()}
-              className="w-full h-16 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-lg font-medium shadow-lg hover:shadow-xl transition-all"
-              size="lg"
+              className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium shadow-lg hover:shadow-xl transition-all"
             >
-              <Upload className="mr-3 h-6 w-6" />
+              <Upload className="mr-2 h-5 w-5" />
               Upload Photos
             </Button>
 
@@ -160,10 +159,10 @@ export function CreateSessionForm({ onCancel, onSessionCreated }: CreateSessionF
           </div>
 
           {/* Create Session Button */}
-          <div className="pt-6">
+          <div className="pt-4">
             <Button
               onClick={handleCreateSession}
-              className="w-full h-16 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white text-lg font-medium shadow-lg hover:shadow-xl transition-all"
+              className="w-full h-12 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-medium shadow-lg hover:shadow-xl transition-all"
               disabled={!customerName || !location || uploadedFiles.length === 0}
             >
               Create Session

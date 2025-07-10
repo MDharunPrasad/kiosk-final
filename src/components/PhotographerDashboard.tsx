@@ -24,9 +24,9 @@ const mockSessions: Session[] = [
     date: "2024-07-20",
     type: "Family",
     images: [
-      "/lovable-uploads/79770456-acec-4ab2-b867-86159b94b4ea.png",
-      "/lovable-uploads/6088a135-d271-4528-8e1b-a06cbbe58d03.png",
-      "/lovable-uploads/9abd203d-7cad-4487-b2c4-48f26090e9b6.png",
+      "https://images.unsplash.com/photo-1511895426328-dc8714191300?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1520591846324-619f5e57e75d?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1517198875426-d8d24d67ef72?w=800&h=600&fit=crop",
     ],
     customerDetails: {
       name: "Johnson Family",
@@ -40,7 +40,8 @@ const mockSessions: Session[] = [
     date: "2024-07-15",
     type: "Wedding",
     images: [
-      "/lovable-uploads/79770456-acec-4ab2-b867-86159b94b4ea.png",
+      "https://images.unsplash.com/photo-1519741497674-611481863552?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1469371670807-013ccf25f16a?w=800&h=600&fit=crop",
     ],
     customerDetails: {
       name: "Sarah & Mike",
@@ -54,7 +55,8 @@ const mockSessions: Session[] = [
     date: "2024-07-10",
     type: "Graduation",
     images: [
-      "/lovable-uploads/79770456-acec-4ab2-b867-86159b94b4ea.png",
+      "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=800&h=600&fit=crop",
     ],
     customerDetails: {
       name: "Emily Rodriguez",
@@ -68,7 +70,8 @@ const mockSessions: Session[] = [
     date: "2024-07-05",
     type: "Corporate",
     images: [
-      "/lovable-uploads/79770456-acec-4ab2-b867-86159b94b4ea.png",
+      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=800&h=600&fit=crop",
     ],
     customerDetails: {
       name: "Tech Solutions Inc",
@@ -138,22 +141,22 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
       <div className="bg-white dark:bg-slate-800 border-b border-border p-4 flex justify-between items-center shadow-sm">
         <button 
           onClick={handleBackToLogin}
-          className="flex items-center gap-2 text-blue-600 hover:text-blue-800 transition-colors"
+          className="flex items-center gap-3 text-blue-600 hover:text-blue-800 transition-all duration-200 group"
         >
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-sm">PK</span>
+          <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all">
+            <span className="text-white font-bold text-lg">📸</span>
           </div>
-          <span className="text-xl font-bold">Photo Kiosk</span>
+          <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Photo Kiosk</span>
         </button>
         
-        <div className="flex items-center gap-4 mr-4">
-          <div className="text-left bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-700 dark:to-slate-600 px-4 py-2 rounded-lg">
-            <p className="font-semibold text-slate-800 dark:text-slate-200">{username || "Photographer"}</p>
-            <p className="text-sm text-slate-600 dark:text-slate-400">{new Date().toLocaleDateString()}</p>
+        <div className="flex items-center gap-4 mr-6">
+          <div className="text-left bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-700 dark:to-slate-600 px-6 py-3 rounded-xl shadow-sm border border-blue-200 dark:border-slate-600">
+            <p className="font-bold text-slate-800 dark:text-slate-200 text-lg">{username || "Photographer"}</p>
+            <p className="text-sm text-slate-600 dark:text-slate-400 font-medium">{new Date().toLocaleDateString()}</p>
           </div>
           <button 
             onClick={handleLogout}
-            className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
+            className="px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
           >
             Logout
           </button>
@@ -204,8 +207,8 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
                   {getSessionIcon(session.type)}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-medium text-xs truncate">{session.customerDetails.name}</h3>
-                  <p className="text-xs text-muted-foreground">{session.date}</p>
+                  <h3 className="font-medium text-sm truncate">{session.customerDetails.name}</h3>
+                  <p className="text-xs text-muted-foreground font-medium">{session.date}</p>
                 </div>
               </div>
             </div>
@@ -249,22 +252,23 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
         />
       ) : (
         <div className="flex-1 flex flex-col bg-white dark:bg-slate-800">
-          {/* Header with customer name */}
-          <div className="border-b border-border p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-700 dark:to-slate-600">
+          {/* Header with customer name and date */}
+          <div className="border-b border-border p-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-700 dark:to-slate-600">
             <div className="text-center">
-              <h1 className="text-xl font-bold text-slate-800 dark:text-white">{selectedSession.customerDetails.name}</h1>
+              <h1 className="text-2xl font-bold text-slate-800 dark:text-white mb-1">{selectedSession.customerDetails.name}</h1>
+              <p className="text-slate-600 dark:text-slate-300 font-medium">{selectedSession.date}</p>
             </div>
           </div>
 
           <div className="flex-1 flex overflow-hidden">
-            {/* Main Image Area - Increased space */}
-            <div className="flex-1 p-4 flex flex-col items-center justify-center relative min-w-0">
-              <div className="relative w-full h-full max-h-[calc(100vh-200px)] flex items-center justify-center">
+            {/* Main Image Area - Optimized space */}
+            <div className="flex-1 p-6 flex flex-col items-center justify-center relative min-w-0">
+              <div className="relative w-full h-full max-h-[calc(100vh-240px)] flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-slate-800 dark:to-slate-900 rounded-xl">
                 <img
                   src={selectedSession.images[currentImageIndex]}
                   alt="Session photo"
-                  className="max-w-full max-h-full object-contain rounded-lg shadow-lg will-change-transform"
-                  loading="lazy"
+                  className="max-w-full max-h-full object-contain rounded-xl shadow-2xl transition-opacity duration-200"
+                  loading="eager"
                 />
                 
                 {/* Navigation Buttons */}
@@ -293,25 +297,25 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
               </div>
             </div>
 
-            {/* Right Sidebar - Larger Thumbnails */}
-            <div className="w-80 p-4 border-l border-border bg-gray-50 dark:bg-slate-700 overflow-y-auto">
-              <h3 className="text-base font-semibold mb-4 text-slate-800 dark:text-white">Photos ({selectedSession.images.length})</h3>
-              <div className="space-y-3">
+            {/* Right Sidebar - Enhanced Thumbnails */}
+            <div className="w-72 p-6 border-l border-border bg-gradient-to-b from-gray-50 to-gray-100 dark:from-slate-700 dark:to-slate-800 overflow-y-auto">
+              <h3 className="text-lg font-bold mb-6 text-slate-800 dark:text-white">Photos ({selectedSession.images.length})</h3>
+              <div className="space-y-4">
                 {selectedSession.images.map((image, index) => (
                   <div
                     key={index}
                     onClick={() => setCurrentImageIndex(index)}
-                    className={`cursor-pointer rounded-lg overflow-hidden border-2 transition-all hover:scale-105 ${
+                    className={`cursor-pointer rounded-xl overflow-hidden border-2 transition-all duration-200 hover:scale-[1.02] ${
                       currentImageIndex === index
-                        ? "border-blue-500 shadow-lg ring-2 ring-blue-200"
-                        : "border-gray-300 hover:border-blue-300"
+                        ? "border-blue-500 shadow-xl ring-4 ring-blue-200 dark:ring-blue-800"
+                        : "border-gray-300 dark:border-slate-600 hover:border-blue-400 hover:shadow-lg"
                     }`}
                   >
                     <img
                       src={image}
                       alt={`Thumbnail ${index + 1}`}
-                      className="w-full h-32 object-cover"
-                      loading="lazy"
+                      className="w-full h-40 object-cover transition-transform duration-200"
+                      loading="eager"
                     />
                   </div>
                 ))}
