@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Calendar, Search, ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
+import { Calendar, Search, ChevronLeft, ChevronRight, Plus, Trash2, Minus } from "lucide-react";
 import { CreateSessionForm } from "./CreateSessionForm";
+import { useRef } from "react";
 
 interface Session {
   id: string;
@@ -93,6 +94,8 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
   const [showCreateSession, setShowCreateSession] = useState(false);
   const [sessions, setSessions] = useState<Session[]>(mockSessions);
   const [showUpdateSuccess, setShowUpdateSuccess] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [zoom, setZoom] = useState(1);
 
   const handleLogout = () => {
     window.location.reload();
@@ -159,6 +162,25 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
       "Corporate": "C"
     };
     return icons[type as keyof typeof icons] || "S";
+  };
+
+  // Add more photos handler
+  const handleAddMorePhotos = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
+    const newImages = files.map(file => URL.createObjectURL(file));
+    const updatedSession = {
+      ...selectedSession,
+      images: [...selectedSession.images, ...newImages],
+    };
+    setSelectedSession(updatedSession);
+    // Also update in sessions state
+    const updatedSessions = sessions.map(session =>
+      session.id === selectedSession.id ? updatedSession : session
+    );
+    setSessions(updatedSessions);
+    // Reset file input value so same file can be uploaded again if needed
+    event.target.value = "";
   };
 
   return (
@@ -303,59 +325,145 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
                 <p className="text-sm text-slate-600 dark:text-slate-300">{selectedSession.date}</p>
               </div>
               
-              <div className="relative bg-gradient-to-br from-gray-50 to-gray-100 dark:from-slate-800 dark:to-slate-900 rounded-xl overflow-hidden" style={{ height: 'calc(100vh - 200px)' }}>
-                <div className="absolute inset-0 flex items-center justify-center p-4">
+              <div className="relative bg-gradient-to-br from-gray-50 to-gray-100 dark:from-slate-800 dark:to-slate-900 rounded-xl overflow-hidden flex items-center justify-center" style={{ height: 'calc(100vh - 200px)' }}>
+                <div className="absolute inset-0 flex items-center justify-center p-0" style={{ width: '100%', height: '100%' }}>
                   {selectedSession.images.length === 0 ? (
                     <span className="text-gray-400">No images available</span>
                   ) : (
-                    <img
-                      src={selectedSession.images[currentImageIndex]}
-                      alt="Session photo"
-                      className="object-contain rounded-lg shadow-2xl transition-opacity duration-200"
+                    <div
+                      className="relative flex items-center justify-center"
                       style={{
-                        maxWidth: '100%',
-                        maxHeight: '100%',
-                        width: 'auto',
-                        height: 'auto'
+                        width: '100%',
+                        maxWidth: '800px',
+                        aspectRatio: '4/3',
+                        background: '#fff',
+                        borderRadius: '1.5rem',
+                        boxShadow: '0 8px 40px rgba(0,0,0,0.13)',
+                        border: '1.5px solid #e5e7eb',
+                        margin: '0 auto',
+                        minHeight: '400px',
+                        minWidth: '533px',
+                        maxHeight: '70vh',
+                        backgroundClip: 'padding-box',
+                        overflow: 'hidden',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        position: 'relative',
                       }}
-                      loading="eager"
-                      onError={(e) => {
-                        // If image fails, try next image or show fallback
-                        const newImages = selectedSession.images.filter((_, i) => i !== currentImageIndex);
-                        if (newImages.length > 0) {
-                          setSelectedSession({ ...selectedSession, images: newImages });
-                          setCurrentImageIndex(0);
-                        } else {
-                          e.currentTarget.style.display = 'none';
-                        }
-                      }}
-                    />
+                    >
+                      {/* Left navigation button inside canvas */}
+                      {selectedSession.images.length > 1 && (
+                        <Button
+                          variant="secondary"
+                          size="icon"
+                          className="absolute"
+                          style={{
+                            left: 16,
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            borderRadius: '9999px',
+                            background: 'linear-gradient(to right, #3b82f6, #6366f1)',
+                            color: 'white',
+                            boxShadow: '0 4px 24px rgba(0,0,0,0.12)',
+                            zIndex: 40,
+                          }}
+                          onClick={prevImage}
+                          disabled={currentImageIndex === 0}
+                        >
+                          <ChevronLeft className="h-6 w-6 text-white" />
+                        </Button>
+                      )}
+                      {/* Right navigation button inside canvas */}
+                      {selectedSession.images.length > 1 && (
+                        <Button
+                          variant="secondary"
+                          size="icon"
+                          className="absolute"
+                          style={{
+                            right: 16,
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            borderRadius: '9999px',
+                            background: 'linear-gradient(to right, #3b82f6, #6366f1)',
+                            color: 'white',
+                            boxShadow: '0 4px 24px rgba(0,0,0,0.12)',
+                            zIndex: 40,
+                          }}
+                          onClick={nextImage}
+                          disabled={currentImageIndex === selectedSession.images.length - 1}
+                        >
+                          <ChevronRight className="h-6 w-6 text-white" />
+                        </Button>
+                      )}
+                      <img
+                        src={selectedSession.images[currentImageIndex]}
+                        alt="Session photo"
+                        style={{
+                          maxWidth: '90%',
+                          maxHeight: '90%',
+                          width: 'auto',
+                          height: 'auto',
+                          objectFit: 'contain',
+                          display: 'block',
+                          background: 'transparent',
+                          borderRadius: '1rem',
+                          transform: `scale(${zoom})`,
+                          transition: 'transform 0.2s',
+                          margin: 'auto',
+                        }}
+                        loading="eager"
+                        onError={(e) => {
+                          // If image fails, try next image or show fallback
+                          const newImages = selectedSession.images.filter((_, i) => i !== currentImageIndex);
+                          if (newImages.length > 0) {
+                            setSelectedSession({ ...selectedSession, images: newImages });
+                            setCurrentImageIndex(0);
+                          } else {
+                            e.currentTarget.style.display = 'none';
+                          }
+                        }}
+                      />
+                      {/* Zoom controls absolutely centered at bottom inside canvas */}
+                      <div
+                        style={{
+                          position: 'absolute',
+                          left: '50%',
+                          bottom: 24,
+                          transform: 'translateX(-50%)',
+                          background: 'rgba(255,255,255,0.98)',
+                          borderRadius: '9999px',
+                          boxShadow: '0 4px 24px rgba(0,0,0,0.12)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          padding: '0.25rem 1.25rem',
+                          gap: '1.25rem',
+                          zIndex: 30,
+                          minWidth: '140px',
+                        }}
+                      >
+                        <button
+                          className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-200 hover:bg-blue-100 text-xl font-bold transition disabled:opacity-50"
+                          onClick={() => setZoom(z => Math.max(0.5, z - 0.2))}
+                          disabled={zoom <= 0.5}
+                          title="Zoom Out"
+                        >
+                          <Minus className="w-5 h-5" />
+                        </button>
+                        <span className="text-base font-semibold text-gray-800 select-none" style={{ minWidth: 48, textAlign: 'center' }}>{(zoom * 100).toFixed(0)}%</span>
+                        <button
+                          className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-200 hover:bg-blue-100 text-xl font-bold transition disabled:opacity-50"
+                          onClick={() => setZoom(z => Math.min(2.5, z + 0.2))}
+                          disabled={zoom >= 2.5}
+                          title="Zoom In"
+                        >
+                          <Plus className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </div>
                   )}
                 </div>
                 
-                {/* Navigation Buttons */}
-                {selectedSession.images.length > 1 && (
-                  <>
-                    <Button
-                      variant="secondary"
-                      size="icon"
-                      className="absolute left-4 top-1/2 transform -translate-y-1/2 rounded-full bg-white/90 hover:bg-white shadow-lg transition-all"
-                      onClick={prevImage}
-                      disabled={currentImageIndex === 0}
-                    >
-                      <ChevronLeft className="h-6 w-6 text-slate-700" />
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      size="icon"
-                      className="absolute right-4 top-1/2 transform -translate-y-1/2 rounded-full bg-white/90 hover:bg-white shadow-lg transition-all"
-                      onClick={nextImage}
-                      disabled={currentImageIndex === selectedSession.images.length - 1}
-                    >
-                      <ChevronRight className="h-6 w-6 text-slate-700" />
-                    </Button>
-                  </>
-                )}
               </div>
             </div>
 
@@ -364,21 +472,18 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
               <h3 className="text-base font-bold mb-4 text-slate-800 dark:text-white">Photos ({selectedSession.images.length})</h3>
               <Button
                 className="mb-4 w-full bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all"
-                onClick={() => {
-                  // Save the updated images to the selected session
-                  const updatedSessions = sessions.map(session => {
-                    if (session.id === selectedSession.id) {
-                      return { ...session, images: selectedSession.images };
-                    }
-                    return session;
-                  });
-                  setSessions(updatedSessions);
-                  setShowUpdateSuccess(true);
-                  setTimeout(() => setShowUpdateSuccess(false), 2000);
-                }}
+                onClick={() => fileInputRef.current?.click()}
               >
-                Update Session
+                Add More Photos
               </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept="image/*"
+                onChange={handleAddMorePhotos}
+                className="hidden"
+              />
               {showUpdateSuccess && (
                 <div className="mb-2 text-green-600 font-semibold text-center">Done successfully!</div>
               )}
@@ -392,29 +497,32 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
                         : "border-gray-300 dark:border-slate-600 hover:border-blue-400 hover:shadow-md"
                     }`}
                   >
-                    <img
-                      src={image}
-                      alt={`Thumbnail ${index + 1}`}
-                      className="w-full h-32 object-cover transition-transform duration-200"
-                      loading="lazy"
-                      onClick={() => setCurrentImageIndex(index)}
-                      onError={(e) => {
-                        // Remove broken image from session
-                        const newImages = selectedSession.images.filter((_, i) => i !== index);
-                        setSelectedSession({ ...selectedSession, images: newImages });
-                        // Also update in sessions state
-                        const updatedSessions = sessions.map(session => {
-                          if (session.id === selectedSession.id) {
-                            return { ...session, images: newImages };
+                    {/* 4:3 aspect ratio wrapper, object-cover for gallery look */}
+                    <div className="w-full h-32 aspect-[4/3] bg-gray-100 flex items-center justify-center rounded-lg overflow-hidden">
+                      <img
+                        src={image}
+                        alt={`Thumbnail ${index + 1}`}
+                        className="w-full h-full object-cover bg-transparent rounded-lg"
+                        loading="lazy"
+                        onClick={() => setCurrentImageIndex(index)}
+                        onError={(e) => {
+                          // Remove broken image from session
+                          const newImages = selectedSession.images.filter((_, i) => i !== index);
+                          setSelectedSession({ ...selectedSession, images: newImages });
+                          // Also update in sessions state
+                          const updatedSessions = sessions.map(session => {
+                            if (session.id === selectedSession.id) {
+                              return { ...session, images: newImages };
+                            }
+                            return session;
+                          });
+                          setSessions(updatedSessions);
+                          if (currentImageIndex >= newImages.length) {
+                            setCurrentImageIndex(Math.max(0, newImages.length - 1));
                           }
-                          return session;
-                        });
-                        setSessions(updatedSessions);
-                        if (currentImageIndex >= newImages.length) {
-                          setCurrentImageIndex(Math.max(0, newImages.length - 1));
-                        }
-                      }}
-                    />
+                        }}
+                      />
+                    </div>
                     <button
                       className="absolute top-1 right-1 bg-white/80 hover:bg-red-100 text-red-600 rounded-full p-1 shadow"
                       style={{ zIndex: 2 }}
