@@ -4,6 +4,16 @@ import { Input } from "@/components/ui/input";
 import { Calendar, Search, ChevronLeft, ChevronRight, Plus, Trash2, Minus } from "lucide-react";
 import { CreateSessionForm } from "./CreateSessionForm";
 import { useRef } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Session {
   id: string;
@@ -96,6 +106,12 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
   const [showUpdateSuccess, setShowUpdateSuccess] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [zoom, setZoom] = useState(1);
+  
+  // Warning dialog states
+  const [showSessionDeleteDialog, setShowSessionDeleteDialog] = useState(false);
+  const [showPhotoDeleteDialog, setShowPhotoDeleteDialog] = useState(false);
+  const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
+  const [photoToDelete, setPhotoToDelete] = useState<{ sessionId: string; photoIndex: number } | null>(null);
 
   const handleLogout = () => {
     window.location.reload();
@@ -141,17 +157,27 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
   };
 
   const handleDeleteSession = (sessionId: string) => {
-    const updatedSessions = sessions.filter(session => session.id !== sessionId);
+    setSessionToDelete(sessionId);
+    setShowSessionDeleteDialog(true);
+  };
+
+  const confirmDeleteSession = () => {
+    if (!sessionToDelete) return;
+    
+    const updatedSessions = sessions.filter(session => session.id !== sessionToDelete);
     setSessions(updatedSessions);
     
-    if (selectedSession.id === sessionId && updatedSessions.length > 0) {
+    if (selectedSession.id === sessionToDelete && updatedSessions.length > 0) {
       setSelectedSession(updatedSessions[0]);
       setCurrentImageIndex(0);
     }
     // If the deleted session was lastSession, clear it
-    if (lastSession && lastSession.id === sessionId) {
+    if (lastSession && lastSession.id === sessionToDelete) {
       setLastSession(null);
     }
+    
+    setShowSessionDeleteDialog(false);
+    setSessionToDelete(null);
   };
 
   const getSessionIcon = (type: string) => {
@@ -162,6 +188,40 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
       "Corporate": "C"
     };
     return icons[type as keyof typeof icons] || "S";
+  };
+
+  const handleDeletePhoto = (sessionId: string, photoIndex: number) => {
+    setPhotoToDelete({ sessionId, photoIndex });
+    setShowPhotoDeleteDialog(true);
+  };
+
+  const confirmDeletePhoto = () => {
+    if (!photoToDelete) return;
+    
+    const { sessionId, photoIndex } = photoToDelete;
+    const session = sessions.find(s => s.id === sessionId);
+    if (!session) return;
+    
+    const newImages = session.images.filter((_, i) => i !== photoIndex);
+    const updatedSession = { ...session, images: newImages };
+    
+    setSelectedSession(updatedSession);
+    
+    // Also update in sessions state
+    const updatedSessions = sessions.map(s => {
+      if (s.id === sessionId) {
+        return updatedSession;
+      }
+      return s;
+    });
+    setSessions(updatedSessions);
+    
+    if (currentImageIndex >= newImages.length) {
+      setCurrentImageIndex(Math.max(0, newImages.length - 1));
+    }
+    
+    setShowPhotoDeleteDialog(false);
+    setPhotoToDelete(null);
   };
 
   // Add more photos handler
@@ -528,19 +588,7 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
                       style={{ zIndex: 2 }}
                       onClick={(e) => {
                         e.stopPropagation();
-                        const newImages = selectedSession.images.filter((_, i) => i !== index);
-                        setSelectedSession({ ...selectedSession, images: newImages });
-                        // Also update in sessions state
-                        const updatedSessions = sessions.map(session => {
-                          if (session.id === selectedSession.id) {
-                            return { ...session, images: newImages };
-                          }
-                          return session;
-                        });
-                        setSessions(updatedSessions);
-                        if (currentImageIndex >= newImages.length) {
-                          setCurrentImageIndex(Math.max(0, newImages.length - 1));
-                        }
+                        handleDeletePhoto(selectedSession.id, index);
                       }}
                       title="Delete image"
                     >
@@ -553,6 +601,48 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
           </div>
         </div>
       )}
+      
+      {/* Session Delete Warning Dialog */}
+      <AlertDialog open={showSessionDeleteDialog} onOpenChange={setShowSessionDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Session</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this session? This action cannot be undone and will permanently remove all photos and customer details associated with this session.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDeleteSession}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              Delete Session
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Photo Delete Warning Dialog */}
+      <AlertDialog open={showPhotoDeleteDialog} onOpenChange={setShowPhotoDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Photo</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this photo? This action cannot be undone and will permanently remove the photo from this session.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDeletePhoto}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              Delete Photo
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       </div>
     </div>
   );
