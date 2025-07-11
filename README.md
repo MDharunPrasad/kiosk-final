@@ -1,73 +1,65 @@
-# Welcome to your Lovable project
+📸 Photo Kiosk System
+A responsive and efficient photo kiosk platform designed and developed by Abishekbala, Dharunprasad, and Dinesh Raja. This system enables photographers to upload photos, while customers can view, select, and purchase their photos in a seamless interface.
 
-## Project info
+🚀 Tech Stack
+⚛️ React
 
-**URL**: https://lovable.dev/projects/41564d07-8c3c-4aef-87af-88f39bd52455
+⚡ Vite
 
-## How can I edit this code?
+💅 Tailwind CSS
 
-There are several ways of editing your application.
+🧩 shadcn/ui
 
-**Use Lovable**
+🧠 TypeScript
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/41564d07-8c3c-4aef-87af-88f39bd52455) and start prompting.
+📁 Getting Started
+To run this project locally, follow these steps:
 
-Changes made via Lovable will be committed automatically to this repo.
+🔧 Prerequisites
+Ensure you have Node.js and npm installed. You can install Node.js via nvm for version control.
 
-**Use your preferred IDE**
+🛠️ Installation Steps
+bash
+Copy
+Edit
+# Clone the repository
+git clone https://github.com/<your-username>/<your-repo>.git
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+# Navigate to the project directory
+cd <your-repo>
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+# Install dependencies
+npm install
 
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Start the development server
 npm run dev
-```
+The app will be available at http://localhost:5173 (or the port specified in your terminal).
 
-**Edit a file directly in GitHub**
+🌐 Deployment
+You can deploy this application using any modern frontend hosting service like:
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+Vercel
 
-**Use GitHub Codespaces**
+Netlify
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+GitHub Pages
 
-## What technologies are used for this project?
+Make sure to build the project before deploying:
 
-This project is built with:
+bash
+Copy
+Edit
+npm run build
+🛡️ License
+This project is open-source and available under the MIT License.
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+👥 Team
+Built with dedication and teamwork by:
 
-## How can I deploy this project?
+Abishekbala
 
-Simply open [Lovable](https://lovable.dev/projects/41564d07-8c3c-4aef-87af-88f39bd52455) and click on Share -> Publish.
+Dharunprasad
 
-## Can I connect a custom domain to my Lovable project?
+Dinesh Raja
 
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+Let me know if you’d like this adjusted for Netlify/Vercel deployment instructions or if you want a specific project logo, badge, or image added at the
