@@ -271,7 +271,10 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
         <button 
           onClick={handleBackToLastSession}
           className="flex items-center gap-3 text-green-600 hover:text-green-800 transition-all duration-200 group"
+          aria-label="Back"
+          title="Back"
         >
+          <ChevronLeft className="h-6 w-6" />
           <span className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">Photo Kiosk</span>
         </button>
         
