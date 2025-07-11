@@ -86,6 +86,7 @@ interface PhotographerDashboardProps {
 
 export function PhotographerDashboard({ username }: PhotographerDashboardProps) {
   const [selectedSession, setSelectedSession] = useState<Session>(mockSessions[0]);
+  const [lastSession, setLastSession] = useState<Session | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDate, setSelectedDate] = useState("");
@@ -97,10 +98,16 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
     window.location.reload();
   };
 
-  const handleBackToLogin = () => {
-    // Stay on dashboard instead of going to login
-    setSelectedSession(sessions[0]);
-    setCurrentImageIndex(0);
+  // When logo is clicked, go back to last session (if any), else fallback to first session
+  const handleBackToLastSession = () => {
+    if (lastSession) {
+      setSelectedSession(lastSession);
+      setCurrentImageIndex(0);
+    } else {
+      setSelectedSession(sessions[0]);
+      setCurrentImageIndex(0);
+    }
+    setShowCreateSession(false);
   };
 
   const filteredSessions = sessions.filter(session => {
@@ -122,9 +129,12 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
     }
   };
 
+  // When a session is selected, remember the previous one as lastSession
   const handleSessionSelect = (session: Session) => {
+    setLastSession(selectedSession); // store current before switching
     setSelectedSession(session);
     setCurrentImageIndex(0);
+    setShowCreateSession(false);
   };
 
   const handleDeleteSession = (sessionId: string) => {
@@ -134,6 +144,10 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
     if (selectedSession.id === sessionId && updatedSessions.length > 0) {
       setSelectedSession(updatedSessions[0]);
       setCurrentImageIndex(0);
+    }
+    // If the deleted session was lastSession, clear it
+    if (lastSession && lastSession.id === sessionId) {
+      setLastSession(null);
     }
   };
 
@@ -152,7 +166,7 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
       {/* Top Header */}
       <div className="bg-white dark:bg-slate-800 border-b border-border p-4 flex justify-between items-center shadow-sm flex-shrink-0">
         <button 
-          onClick={handleBackToLogin}
+          onClick={handleBackToLastSession}
           className="flex items-center gap-3 text-blue-600 hover:text-blue-800 transition-all duration-200 group"
         >
           <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Photo Kiosk</span>
@@ -250,7 +264,14 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
       {/* Main Content */}
       {showCreateSession ? (
         <CreateSessionForm
-          onCancel={() => setShowCreateSession(false)}
+          onCancel={() => {
+            setShowCreateSession(false);
+            // On cancel, restore lastSession if it exists
+            if (lastSession) {
+              setSelectedSession(lastSession);
+              setCurrentImageIndex(0);
+            }
+          }}
           onSessionCreated={(newSession) => {
             const sessionToAdd = {
               id: (sessions.length + 1).toString(),
@@ -265,6 +286,7 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
               }
             };
             setSessions([sessionToAdd, ...sessions]);
+            setLastSession(sessionToAdd); // new session becomes lastSession
             setSelectedSession(sessionToAdd);
             setCurrentImageIndex(0);
             setShowCreateSession(false);
