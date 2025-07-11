@@ -71,43 +71,8 @@ const ROLES = [
 
 function AuthDialog({ onLogin }: { onLogin?: (role: string, username?: string) => void }) {
 	const [selectedRole, setSelectedRole] = useState<string | null>(null);
-	const [email, setEmail] = useState<string>("");
+	const [username, setUsername] = useState<string>("");
 	const [password, setPassword] = useState<string>("");
-	const [emailError, setEmailError] = useState<string>("");
-
-	// Email validation function
-	const validateEmail = (email: string): boolean => {
-		const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-		return emailRegex.test(email);
-	};
-
-	// Handle email input change with validation
-	const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		const emailValue = e.target.value;
-		setEmail(emailValue);
-
-		if (emailValue && !validateEmail(emailValue)) {
-			setEmailError("Please enter a valid email address");
-		} else {
-			setEmailError("");
-		}
-	};
-
-	// Handle form submission
-	const handleSubmit = (e: React.FormEvent) => {
-		e.preventDefault();
-
-		if (!email || !validateEmail(email)) {
-			setEmailError("Please enter a valid email address");
-			return;
-		}
-
-		if (!password) {
-			return;
-		}
-
-		onLogin && onLogin(selectedRole!, email);
-	};
 
 	// First page: role selection
 	if (!selectedRole) {
@@ -181,22 +146,24 @@ function AuthDialog({ onLogin }: { onLogin?: (role: string, username?: string) =
 						Login as {roleObj?.label}
 					</h2>
 				</div>
-				<form className="space-y-5" onSubmit={handleSubmit}>
+				<form
+					className="space-y-5"
+					onSubmit={(e) => {
+						e.preventDefault();
+						onLogin && onLogin(selectedRole!, username);
+					}}
+				>
 					<div className="space-y-4">
 						<div className="space-y-2">
-							<Label htmlFor="email">Email</Label>
+							<Label htmlFor="username">Username</Label>
 							<Input
-								id="email"
-								placeholder="Enter your email address"
-								type="email"
-								value={email}
-								onChange={handleEmailChange}
-								className={emailError ? "border-red-500 focus:border-red-500" : ""}
+								id="username"
+								placeholder="Enter your username"
+								type="text"
+								value={username}
+								onChange={(e) => setUsername(e.target.value)}
 								required
 							/>
-							{emailError && (
-								<p className="text-sm text-red-500 mt-1">{emailError}</p>
-							)}
 						</div>
 						<div className="space-y-2">
 							<Label htmlFor="password">Password</Label>
@@ -210,11 +177,7 @@ function AuthDialog({ onLogin }: { onLogin?: (role: string, username?: string) =
 							/>
 						</div>
 					</div>
-					<Button
-						type="submit"
-						className={`w-full ${roleObj?.btnBg}`}
-						disabled={!email || !validateEmail(email) || !password}
-					>
+					<Button type="submit" className={`w-full ${roleObj?.btnBg}`}>
 						Sign in
 					</Button>
 					<Button
