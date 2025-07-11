@@ -50,8 +50,6 @@ bash
 Copy
 Edit
 npm run build
-🛡️ License
-This project is open-source and available under the MIT License.
 
 👥 Team
 Built with dedication and teamwork by:
