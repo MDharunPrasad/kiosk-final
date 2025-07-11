@@ -24,7 +24,6 @@ const mockSessions: Session[] = [
     date: "2024-07-20",
     type: "Family",
     images: [
-      "lovable-uploads/6088a135-d271-4528-8e1b-a06cbbe58d03.png", // replaced with a valid local image
       "https://images.unsplash.com/photo-1472396961693-142e6e269027?w=800&h=600&fit=crop",
       "https://images.unsplash.com/photo-1582562124811-c09040d0a901?w=800&h=600&fit=crop",
     ],
