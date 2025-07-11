@@ -693,6 +693,15 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
               <AlertDialogAction onClick={() => setShowCartDialog(false)}>
                 Close
               </AlertDialogAction>
+              <AlertDialogAction
+                onClick={() => {
+                  setShowCartDialog(false);
+                  alert('Cart confirmed!');
+                }}
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                Confirm
+              </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
