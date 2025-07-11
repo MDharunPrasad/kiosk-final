@@ -121,6 +121,7 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
   const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
   const [photoToDelete, setPhotoToDelete] = useState<{ sessionId: string; photoIndex: number } | null>(null);
   const [showCartWarningDialog, setShowCartWarningDialog] = useState(false);
+  const [showCartDialog, setShowCartDialog] = useState(false);
 
   const handleLogout = () => {
     window.location.reload();
@@ -260,9 +261,11 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
       setShowCartWarningDialog(true);
       return;
     }
-    alert(`Going to cart with ${cart.length} items`);
-    // Here you would typically navigate to a cart page or open a cart modal
+    setShowCartDialog(true);
   };
+
+  // Calculate the count of cart items for the currently selected session
+  const currentSessionCartCount = cart.filter(item => item.sessionId === selectedSession.id).length;
 
   return (
     <div className="h-screen bg-gradient-to-br from-green-50 to-emerald-100 dark:from-slate-900 dark:to-slate-800 flex flex-col overflow-hidden">
@@ -659,6 +662,40 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Cart Dialog for current session */}
+        <AlertDialog open={showCartDialog} onOpenChange={setShowCartDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Selected Photos in This Session</AlertDialogTitle>
+              <AlertDialogDescription>
+                {(() => {
+                  const currentSessionCart = cart.filter(item => item.sessionId === selectedSession.id);
+                  if (currentSessionCart.length === 0) {
+                    return <span>No photos from this session are in your cart.</span>;
+                  }
+                  return (
+                    <div className="flex flex-wrap gap-3 mt-2">
+                      {currentSessionCart.map((item, idx) => (
+                        <img
+                          key={item.photoIndex}
+                          src={selectedSession.images[item.photoIndex]}
+                          alt={`Selected photo ${item.photoIndex + 1}`}
+                          className="w-20 h-16 object-cover rounded shadow border"
+                        />
+                      ))}
+                    </div>
+                  );
+                })()}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogAction onClick={() => setShowCartDialog(false)}>
+                Close
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
 
       {/* Add Proceed to Cart button fixed at bottom right */}
@@ -668,7 +705,7 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
         style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.18)' }}
       >
         <ShoppingCart className="h-6 w-6" />
-        Proceed to Cart ({cart.length})
+        Proceed to Cart ({currentSessionCartCount})
       </button>
     </div>
   );
