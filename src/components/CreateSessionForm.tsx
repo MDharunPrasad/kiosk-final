@@ -68,106 +68,108 @@ export function CreateSessionForm({ onCancel, onSessionCreated }: CreateSessionF
 
       {/* Form Content */}
       <div className="flex-1 p-6 flex items-center justify-center">
-        <div className="max-w-lg w-full bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 space-y-5">
-          {/* Customer Name */}
-          <div className="space-y-3">
-            <Label htmlFor="customer-name" className="text-lg font-medium">
-              Customer Name
-            </Label>
-            <Input
-              id="customer-name"
-              placeholder="Enter customer's full name"
-              value={customerName}
-              onChange={(e) => setCustomerName(e.target.value)}
-              className="w-full h-12 text-base"
-            />
+        <div className="max-w-2xl w-full bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 flex gap-6">
+          {/* Main Form Section */}
+          <div className="flex-1 min-w-0 space-y-5">
+            {/* Customer Name */}
+            <div className="space-y-3">
+              <Label htmlFor="customer-name" className="text-lg font-medium">
+                Customer Name
+              </Label>
+              <Input
+                id="customer-name"
+                placeholder="Enter customer's full name"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                className="w-full h-12 text-base"
+              />
+            </div>
+
+            {/* Location */}
+            <div className="space-y-3">
+              <Label htmlFor="location" className="text-lg font-medium">
+                Location
+              </Label>
+              <Select value={location} onValueChange={setLocation}>
+                <SelectTrigger className="w-full h-12 text-base">
+                  <SelectValue placeholder="Select a location" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="studio">Studio</SelectItem>
+                  <SelectItem value="central-park">Central Park</SelectItem>
+                  <SelectItem value="riverside-gardens">Riverside Gardens</SelectItem>
+                  <SelectItem value="university-campus">University Campus</SelectItem>
+                  <SelectItem value="office-building">Office Building</SelectItem>
+                  <SelectItem value="beach">Beach</SelectItem>
+                  <SelectItem value="mountain-view">Mountain View</SelectItem>
+                  <SelectItem value="downtown">Downtown</SelectItem>
+                  <SelectItem value="other">Other Location</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Session Photos */}
+            <div className="space-y-4 mt-6">
+              <Label className="text-lg font-medium">Session Photos</Label>
+              {/* Upload Button */}
+              <Button 
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium shadow-lg hover:shadow-xl transition-all"
+              >
+                <Upload className="mr-2 h-5 w-5" />
+                Upload Photos
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept="image/*"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+            </div>
+
+            {/* Create Session Button */}
+            <div className="mt-14">
+              <Button
+                onClick={handleCreateSession}
+                className="w-full h-12 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-medium shadow-lg hover:shadow-xl transition-all"
+                disabled={!customerName || !location || uploadedFiles.length === 0}
+              >
+                Create Session
+              </Button>
+            </div>
           </div>
 
-          {/* Location */}
-          <div className="space-y-3">
-            <Label htmlFor="location" className="text-lg font-medium">
-              Location
-            </Label>
-            <Select value={location} onValueChange={setLocation}>
-              <SelectTrigger className="w-full h-12 text-base">
-                <SelectValue placeholder="Select a location" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="studio">Studio</SelectItem>
-                <SelectItem value="central-park">Central Park</SelectItem>
-                <SelectItem value="riverside-gardens">Riverside Gardens</SelectItem>
-                <SelectItem value="university-campus">University Campus</SelectItem>
-                <SelectItem value="office-building">Office Building</SelectItem>
-                <SelectItem value="beach">Beach</SelectItem>
-                <SelectItem value="mountain-view">Mountain View</SelectItem>
-                <SelectItem value="downtown">Downtown</SelectItem>
-                <SelectItem value="other">Other Location</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Session Photos */}
-          <div className="space-y-4">
-            <Label className="text-lg font-medium">Session Photos</Label>
-            
-            {/* Upload Button */}
-            <Button 
-              onClick={() => fileInputRef.current?.click()}
-              className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium shadow-lg hover:shadow-xl transition-all"
-            >
-              <Upload className="mr-2 h-5 w-5" />
-              Upload Photos
-            </Button>
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept="image/*"
-              onChange={handleFileUpload}
-              className="hidden"
-            />
-
-            {/* Uploaded Files Preview */}
-            {uploadedFiles.length > 0 && (
-              <div className="space-y-4">
-                <p className="text-base font-medium">
-                  Uploaded Photos ({uploadedFiles.length})
-                </p>
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4">
-                  {uploadedFiles.map((file, index) => (
-                    <div key={index} className="relative group">
-                      <img
-                        src={URL.createObjectURL(file)}
-                        alt={`Upload ${index + 1}`}
-                        className="w-full h-24 object-cover rounded-lg border"
-                      />
-                      <button
-                        onClick={() => removeFile(index)}
-                        className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                      <p className="text-xs text-muted-foreground mt-1 truncate">
-                        {file.name}
-                      </p>
-                    </div>
-                  ))}
-                </div>
+          {/* Sidebar for Uploaded Photos */}
+          {uploadedFiles.length > 0 && (
+            <div className="w-56 sm:w-64 md:w-72 flex-shrink-0 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg shadow-inner p-3 flex flex-col" style={{ maxHeight: '420px' }}>
+              <p className="text-base font-medium text-slate-700 dark:text-slate-200 mb-3 text-center">
+                Uploaded ({uploadedFiles.length})
+              </p>
+              <div className="flex-1 overflow-y-auto grid grid-cols-2 gap-3 pr-1" style={{ gridAutoRows: '1fr' }}>
+                {uploadedFiles.map((file, index) => (
+                  <div key={index} className="relative group flex-shrink-0">
+                    <img
+                      src={URL.createObjectURL(file)}
+                      alt={`Upload ${index + 1}`}
+                      className="w-full aspect-square object-cover rounded-lg border"
+                    />
+                    <button
+                      onClick={() => removeFile(index)}
+                      className="absolute top-2 right-2 bg-destructive text-destructive-foreground rounded-full p-1 opacity-80 hover:opacity-100 transition-opacity z-10 shadow"
+                      style={{ transform: 'translate(0, 0)' }}
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                    <p className="text-xs text-muted-foreground mt-1 truncate w-full text-center">
+                      {file.name}
+                    </p>
+                  </div>
+                ))}
               </div>
-            )}
-          </div>
-
-          {/* Create Session Button */}
-          <div className="pt-4">
-            <Button
-              onClick={handleCreateSession}
-              className="w-full h-12 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-medium shadow-lg hover:shadow-xl transition-all"
-              disabled={!customerName || !location || uploadedFiles.length === 0}
-            >
-              Create Session
-            </Button>
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

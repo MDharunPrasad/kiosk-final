@@ -468,9 +468,6 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
                           display: 'block',
                           background: 'transparent',
                           borderRadius: '1rem',
-                          transform: `scale(${zoom})`,
-                          transition: 'transform 0.2s',
-                          margin: 'auto',
                         }}
                         loading="eager"
                         onError={(e) => {
@@ -484,42 +481,6 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
                           }
                         }}
                       />
-                      {/* Zoom controls absolutely centered at bottom inside canvas */}
-                      <div
-                        style={{
-                          position: 'absolute',
-                          left: '50%',
-                          bottom: 24,
-                          transform: 'translateX(-50%)',
-                          background: 'rgba(255,255,255,0.98)',
-                          borderRadius: '9999px',
-                          boxShadow: '0 4px 24px rgba(0,0,0,0.12)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          padding: '0.25rem 1.25rem',
-                          gap: '1.25rem',
-                          zIndex: 30,
-                          minWidth: '140px',
-                        }}
-                      >
-                        <button
-                          className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-200 hover:bg-blue-100 text-xl font-bold transition disabled:opacity-50"
-                          onClick={() => setZoom(z => Math.max(0.5, z - 0.2))}
-                          disabled={zoom <= 0.5}
-                          title="Zoom Out"
-                        >
-                          <Minus className="w-5 h-5" />
-                        </button>
-                        <span className="text-base font-semibold text-gray-800 select-none" style={{ minWidth: 48, textAlign: 'center' }}>{(zoom * 100).toFixed(0)}%</span>
-                        <button
-                          className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-200 hover:bg-blue-100 text-xl font-bold transition disabled:opacity-50"
-                          onClick={() => setZoom(z => Math.min(2.5, z + 0.2))}
-                          disabled={zoom >= 2.5}
-                          title="Zoom In"
-                        >
-                          <Plus className="w-5 h-5" />
-                        </button>
-                      </div>
                     </div>
                   )}
                 </div>
