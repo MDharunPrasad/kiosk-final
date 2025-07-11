@@ -23,7 +23,7 @@ bash
 Copy
 Edit
 # Clone the repository
-git clone https://github.com/<your-username>/<your-repo>.git
+git clone https://github.com/MDharunPrasad/simple-react-dialogs-ui
 
 # Navigate to the project directory
 cd <your-repo>
