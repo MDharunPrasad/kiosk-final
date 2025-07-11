@@ -411,7 +411,7 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
                         <Button
                           variant="secondary"
                           size="icon"
-                          className=""
+                          className="absolute"
                           style={{
                             left: 16,
                             top: '50%',
