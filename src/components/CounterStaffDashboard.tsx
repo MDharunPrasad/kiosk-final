@@ -348,14 +348,11 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
                     {getSessionIcon(session.type)}
                   </div>
                   <div className="flex-1 min-w-0 max-w-full">
-                    <h3 className="font-medium text-sm truncate max-w-full">{session.customerDetails.name}</h3>
-                    <p className="text-xs text-muted-foreground font-medium">{session.date}</p>
-                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-medium text-sm truncate max-w-full">{session.customerDetails.name}</h3>
                       <span className={`text-xs px-2 py-1 rounded-full border ${getStatusColor(session.status)}`}>{session.status}</span>
-                      {session.printCount && (
-                        <span className="text-xs text-muted-foreground">{session.printCount} prints</span>
-                      )}
                     </div>
+                    <p className="text-xs text-muted-foreground font-medium">{session.date}</p>
                   </div>
                   <Button
                     variant="ghost"
@@ -381,18 +378,11 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
             <div className="flex-1 p-4 flex flex-col relative min-w-0">
               {/* Customer name and date - compact header */}
               <div className="text-center mb-3">
-                <h2 className="text-lg font-bold text-slate-800 dark:text-white">{selectedSession.customerDetails.name}</h2>
-                <p className="text-sm text-slate-600 dark:text-slate-300">{selectedSession.date}</p>
-                <div className="flex items-center justify-center gap-4 mt-2">
-                  <span className={`text-sm px-3 py-1 rounded-full border ${getStatusColor(selectedSession.status)}`}>
-                    {selectedSession.status}
-                  </span>
-                  {selectedSession.printCount && (
-                    <span className="text-sm text-muted-foreground">
-                      {selectedSession.printCount} prints requested
-                    </span>
-                  )}
+                <div className="flex items-center justify-center gap-2 mb-1">
+                  <h2 className="text-lg font-bold text-slate-800 dark:text-white">{selectedSession.customerDetails.name}</h2>
+                  <span className={`text-sm px-3 py-1 rounded-full border ${getStatusColor(selectedSession.status)}`}>{selectedSession.status}</span>
                 </div>
+                <p className="text-sm text-slate-600 dark:text-slate-300 text-center">{selectedSession.date}</p>
               </div>
               
               <div className="relative bg-gradient-to-br from-gray-50 to-gray-100 dark:from-slate-800 dark:to-slate-900 rounded-xl overflow-hidden flex items-center justify-center flex-1 min-h-0 pl-16 pb-16">
