@@ -277,7 +277,7 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
           aria-label="Back"
           title="Back"
         >
-          <ChevronLeft className="h-6 w-6" />
+          <ChevronLeft className="h-6 w-6 invisible" />
           <span className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">Photo Kiosk</span>
         </button>
         
@@ -411,7 +411,7 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
                         <Button
                           variant="secondary"
                           size="icon"
-                          className="absolute"
+                          className=""
                           style={{
                             left: 16,
                             top: '50%',
