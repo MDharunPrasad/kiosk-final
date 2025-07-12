@@ -13,6 +13,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { PhotoEditor } from "./PhotoEditor";
 
 interface Session {
   id: string;
@@ -122,6 +123,9 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
   const [photoToDelete, setPhotoToDelete] = useState<{ sessionId: string; photoIndex: number } | null>(null);
   const [showCartWarningDialog, setShowCartWarningDialog] = useState(false);
   const [showCartDialog, setShowCartDialog] = useState(false);
+  
+  // Photo editor state
+  const [showPhotoEditor, setShowPhotoEditor] = useState(false);
 
   const handleLogout = () => {
     window.location.reload();
@@ -262,6 +266,28 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
       return;
     }
     setShowCartDialog(true);
+  };
+
+  const handleSaveEditedImage = (sessionId: string, imageIndex: number, editedImageUrl: string) => {
+    const updatedSessions = sessions.map(session => {
+      if (session.id === sessionId) {
+        const updatedImages = [...session.images];
+        updatedImages[imageIndex] = editedImageUrl;
+        return { ...session, images: updatedImages };
+      }
+      return session;
+    });
+
+    setSessions(updatedSessions);
+    
+    // Update selected session if it's the current one
+    if (selectedSession.id === sessionId) {
+      const updatedImages = [...selectedSession.images];
+      updatedImages[imageIndex] = editedImageUrl;
+      setSelectedSession({ ...selectedSession, images: updatedImages });
+    }
+
+    setShowPhotoEditor(false);
   };
 
   // Calculate the count of cart items for the currently selected session
@@ -486,7 +512,15 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
               <h3 className="text-base font-bold mb-4 text-slate-800 dark:text-white">Photos ({selectedSession.images.length})</h3>
               
               {/* Action Buttons */}
-              {/* Removed Add to Cart and Go to Cart buttons */}
+              <div className="mb-4 space-y-2">
+                <Button
+                  onClick={() => setShowPhotoEditor(true)}
+                  className="w-full bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all"
+                >
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit Photos
+                </Button>
+              </div>
 
               {/* Photo Thumbnails */}
               <div className="grid grid-cols-2 gap-2 lg:gap-3">
@@ -677,6 +711,15 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
         <ShoppingCart className="h-6 w-6" />
         Proceed to Cart ({currentSessionCartCount})
       </button>
+
+      {/* Photo Editor */}
+      {showPhotoEditor && (
+        <PhotoEditor
+          session={selectedSession}
+          onClose={() => setShowPhotoEditor(false)}
+          onSave={handleSaveEditedImage}
+        />
+      )}
     </div>
   );
-} 
+}
