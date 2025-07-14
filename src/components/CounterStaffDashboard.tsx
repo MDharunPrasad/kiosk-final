@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar, Search, ChevronLeft, ChevronRight, Plus, Trash2, Minus, ShoppingCart, Edit } from "lucide-react";
@@ -39,8 +39,8 @@ const mockSessions: Session[] = [
     status: "pending",
     printCount: 2,
     images: [
-      "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800&h=600&fit=crop",
-      "https://images.unsplash.com/photo-1465101046530-73398c7f28ca?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1472396961693-142e6e269027?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1582562124811-c09040d0a901?w=800&h=600&fit=crop",
     ],
     customerDetails: {
       name: "Johnson Family",
@@ -56,8 +56,8 @@ const mockSessions: Session[] = [
     status: "pending",
     printCount: 5,
     images: [
-      "https://images.unsplash.com/photo-1519125323398-675f0ddb6308?w=800&h=600&fit=crop",
-      "https://images.unsplash.com/photo-1465101178521-c1a9136a3b99?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1488972685288-c3fd157d7c7a?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1441057206919-63d19fac2369?w=800&h=600&fit=crop",
     ],
     customerDetails: {
       name: "Sarah & Mike",
@@ -73,8 +73,8 @@ const mockSessions: Session[] = [
     status: "ordered",
     printCount: 3,
     images: [
-      "https://images.unsplash.com/photo-1465101046530-73398c7f28ca?w=800&h=600&fit=crop",
-      "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1472396961693-142e6e269027?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1582562124811-c09040d0a901?w=800&h=600&fit=crop",
     ],
     customerDetails: {
       name: "Emily Rodriguez",
@@ -90,8 +90,8 @@ const mockSessions: Session[] = [
     status: "pending",
     printCount: 1,
     images: [
-      "https://images.unsplash.com/photo-1465101178521-c1a9136a3b99?w=800&h=600&fit=crop",
-      "https://images.unsplash.com/photo-1519125323398-675f0ddb6308?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1488972685288-c3fd157d7c7a?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1441057206919-63d19fac2369?w=800&h=600&fit=crop",
     ],
     customerDetails: {
       name: "Tech Solutions Inc",
@@ -112,10 +112,7 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string>("");
-  const [sessions, setSessions] = useState<Session[]>(() => {
-    const saved = localStorage.getItem('sessions');
-    return saved ? JSON.parse(saved) : mockSessions;
-  });
+  const [sessions, setSessions] = useState<Session[]>(mockSessions);
   const [zoom, setZoom] = useState(1);
   const [cart, setCart] = useState<{ sessionId: string; photoIndex: number }[]>([]);
   
@@ -271,48 +268,30 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
     setShowCartDialog(true);
   };
 
-  const handleSaveEditedImage = (sessionId: string, arg1: number | string[], arg2?: string) => {
-    if (Array.isArray(arg1)) {
-      // arg1 is the new images array
-      const updatedSessions = sessions.map(session => {
-        if (session.id === sessionId) {
-          return { ...session, images: arg1 };
-        }
-        return session;
-      });
-      setSessions(updatedSessions);
-      if (selectedSession.id === sessionId) {
-        setSelectedSession({ ...selectedSession, images: arg1 });
+  const handleSaveEditedImage = (sessionId: string, imageIndex: number, editedImageUrl: string) => {
+    const updatedSessions = sessions.map(session => {
+      if (session.id === sessionId) {
+        const updatedImages = [...session.images];
+        updatedImages[imageIndex] = editedImageUrl;
+        return { ...session, images: updatedImages };
       }
-    } else {
-      // arg1 is imageIndex, arg2 is dataURL
-      const imageIndex = arg1;
-      const dataURL = arg2;
-      const updatedSessions = sessions.map(session => {
-        if (session.id === sessionId) {
-          const updatedImages = [...session.images];
-          updatedImages[imageIndex] = dataURL!;
-          return { ...session, images: updatedImages };
-        }
-        return session;
-      });
-      setSessions(updatedSessions);
-      if (selectedSession.id === sessionId) {
-        const updatedImages = [...selectedSession.images];
-        updatedImages[imageIndex] = dataURL!;
-        setSelectedSession({ ...selectedSession, images: updatedImages });
-      }
+      return session;
+    });
+
+    setSessions(updatedSessions);
+    
+    // Update selected session if it's the current one
+    if (selectedSession.id === sessionId) {
+      const updatedImages = [...selectedSession.images];
+      updatedImages[imageIndex] = editedImageUrl;
+      setSelectedSession({ ...selectedSession, images: updatedImages });
     }
+
     setShowPhotoEditor(false);
   };
 
   // Calculate the count of selected photos for the currently selected session
   const currentSessionSelectedCount = (selectedPhotos[selectedSession.id] || []).length;
-
-  // Save sessions to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem('sessions', JSON.stringify(sessions));
-  }, [sessions]);
 
   return (
     <div className="h-screen bg-gradient-to-br from-green-50 to-emerald-100 dark:from-slate-900 dark:to-slate-800 flex flex-col overflow-hidden">
@@ -562,8 +541,7 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
                       <input
                         type="checkbox"
                         checked={isSelected}
-                        onChange={(e) => {
-                          e.stopPropagation();
+                        onChange={() => {
                           setSelectedPhotos((prev) => {
                             const current = prev[selectedSession.id] || [];
                             if (current.includes(index)) {
@@ -579,10 +557,7 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
                         style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}
                       />
                       {/* 4:3 aspect ratio wrapper, object-cover for gallery look */}
-                      <div
-                        className="w-full h-24 lg:h-32 aspect-[4/3] flex items-center justify-center rounded-lg overflow-hidden relative cursor-pointer"
-                        onClick={() => setCurrentImageIndex(index)}
-                      >
+                      <div className="w-full h-24 lg:h-32 aspect-[4/3] flex items-center justify-center rounded-lg overflow-hidden relative">
                         <img
                           src={image}
                           alt={`Thumbnail ${index + 1}`}
