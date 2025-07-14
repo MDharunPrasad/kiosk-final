@@ -290,8 +290,8 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
     setShowPhotoEditor(false);
   };
 
-  // Calculate the count of selected photos for the currently selected session
-  const currentSessionSelectedCount = (selectedPhotos[selectedSession.id] || []).length;
+  // Calculate the count of cart items for the currently selected session
+  const currentSessionCartCount = cart.filter(item => item.sessionId === selectedSession.id).length;
 
   return (
     <div className="h-screen bg-gradient-to-br from-green-50 to-emerald-100 dark:from-slate-900 dark:to-slate-800 flex flex-col overflow-hidden">
@@ -716,7 +716,7 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
         style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.18)' }}
       >
         <ShoppingCart className="h-6 w-6" />
-        Proceed to Cart ({currentSessionSelectedCount})
+        Proceed to Cart ({currentSessionCartCount})
       </button>
 
       {/* Photo Editor */}
