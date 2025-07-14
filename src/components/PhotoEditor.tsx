@@ -11,7 +11,15 @@ import {
   Save,
   Plus,
   Minus,
-  Check
+  Check,
+  RotateCw,
+  RotateCcw,
+  Settings,
+  Type,
+  Image as ImageIcon,
+  ChevronDown,
+  ChevronRight,
+  Filter // Add Filter icon
 } from "lucide-react";
 import {
   AlertDialog,
@@ -52,15 +60,17 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fabricCanvasRef = useRef<any>(null);
   const originalImageRef = useRef<any>(null);
+  const watermarkInputRef = useRef<HTMLInputElement>(null);
   const [fabricLoaded, setFabricLoaded] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-  const [activeTool, setActiveTool] = useState<string>("select");
+  const [activeTool, setActiveTool] = useState<string>("");
   const [brightness, setBrightness] = useState(0);
   const [contrast, setContrast] = useState(0);
   const [saturation, setSaturation] = useState(0);
   const [isCropping, setIsCropping] = useState(false);
   const [selectedFrame, setSelectedFrame] = useState<string>("none");
   const [selectedBorder, setSelectedBorder] = useState<string>("none");
+  const [selectedFilter, setSelectedFilter] = useState<string>("none"); // Add this line
   const [borderWidth, setBorderWidth] = useState(10);
   const [borderColor, setBorderColor] = useState("#000000");
   const [autoSaveTimeout, setAutoSaveTimeout] = useState<NodeJS.Timeout | null>(null);
@@ -70,23 +80,53 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
   const [imageToDelete, setImageToDelete] = useState<number | null>(null);
   const [currentImages, setCurrentImages] = useState<string[]>(session.images);
   const [editedImages, setEditedImages] = useState<Set<number>>(new Set());
+  
+  // Watermark states
+  const [watermarkText, setWatermarkText] = useState("");
+  const [watermarkColor, setWatermarkColor] = useState("#000000");
+  const [watermarkSize, setWatermarkSize] = useState(20);
+  const [watermarkOpacity, setWatermarkOpacity] = useState(0.5);
 
-  // Frame options
-  const frameOptions = [
-    { value: "none", label: "No Frame" },
-    { value: "classic", label: "Classic" },
-    { value: "modern", label: "Modern" },
-    { value: "vintage", label: "Vintage" },
-    { value: "polaroid", label: "Polaroid" }
+  // Filter options with preview icons
+  const filterOptions = [
+    { value: "none", label: "None", preview: "🔆", color: "#ffffff" },
+    { value: "blackwhite", label: "Black & White", preview: "⚫", color: "#808080" },
+    { value: "sepia", label: "Sepia", preview: "🟤", color: "#8B4513" },
+    { value: "cyberpunk", label: "Cyberpunk", preview: "🟣", color: "#8A2BE2" },
+    { value: "vivid", label: "Vivid", preview: "🌈", color: "#FF6B6B" },
+    { value: "warm", label: "Warm", preview: "🟠", color: "#FFA500" },
+    { value: "cool", label: "Cool", preview: "🔵", color: "#4169E1" },
+    { value: "hdr", label: "HDR", preview: "✨", color: "#FFD700" }
   ];
 
-  // Border options
+  // Frame options with preview icons
+  const frameOptions = [
+    { value: "none", label: "None", preview: "⬜" },
+    { value: "classic", label: "Classic", preview: "🟫" },
+    { value: "modern", label: "Modern", preview: "⬛" },
+    { value: "vintage", label: "Vintage", preview: "🟤" },
+    { value: "polaroid", label: "Polaroid", preview: "⬜" },
+    { value: "ornate", label: "Ornate", preview: "🎨" }
+  ];
+
+  // Border options with preview icons
   const borderOptions = [
-    { value: "none", label: "No Border" },
-    { value: "solid", label: "Solid" },
-    { value: "dashed", label: "Dashed" },
-    { value: "dotted", label: "Dotted" },
-    { value: "double", label: "Double" }
+    { value: "none", label: "None", preview: "⬜" },
+    { value: "solid", label: "Solid", preview: "▬" },
+    { value: "dashed", label: "Dashed", preview: "▭" },
+    { value: "dotted", label: "Dotted", preview: "⋯" },
+    { value: "double", label: "Double", preview: "=" },
+    { value: "rounded", label: "Rounded", preview: "◯" }
+  ];
+
+  // Tool categories - Updated to include Filter
+  const toolCategories = [
+    { id: "crop", label: "Crop", icon: Crop },
+    { id: "adjustment", label: "Adjustment", icon: Settings },
+    { id: "filter", label: "Filter", icon: Filter },
+    { id: "frame", label: "Frame", icon: Square },
+    { id: "border", label: "Border", icon: Circle },
+    { id: "watermark", label: "Watermark", icon: Type }
   ];
 
   // Load fabric.js dynamically
@@ -228,6 +268,7 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
         setSaturation(0);
         setSelectedFrame('none');
         setSelectedBorder('none');
+        setSelectedFilter('none'); // Reset filter when loading new image
         setIsCropping(false);
       }, { crossOrigin: 'anonymous' });
       
@@ -237,6 +278,164 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
     }
   };
 
+  const toggleTool = (toolId: string) => {
+    if (activeTool === toolId) {
+      setActiveTool("");
+    } else {
+      setActiveTool(toolId);
+    }
+  };
+
+  // Filter functions
+  const applyFilter = (filterType: string) => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas || !fabric || !isImageLoaded) return;
+
+    const mainImage = canvas.getObjects().find((obj: any) => obj.id === 'mainImage');
+    if (!mainImage) return;
+
+    try {
+      // Remove ALL existing filters and start fresh
+      const existingFilters = mainImage.filters || [];
+      
+      // Keep only adjustment filters (brightness, contrast, saturation) - remove all artistic filters
+      const adjustmentFilters = existingFilters.filter((filter: any) => {
+        return (
+          (fabric.Image?.filters?.Brightness && filter instanceof fabric.Image.filters.Brightness) ||
+          (fabric.Image?.filters?.Contrast && filter instanceof fabric.Image.filters.Contrast) ||
+          (fabric.Image?.filters?.Saturation && filter instanceof fabric.Image.filters.Saturation)
+        );
+      });
+
+      if (filterType === 'none') {
+        // Keep only adjustment filters, remove all artistic filters
+        mainImage.filters = adjustmentFilters;
+        mainImage.applyFilters();
+        canvas.renderAll();
+        setSelectedFilter('none');
+        return;
+      }
+
+      // Start with adjustment filters and add the new artistic filter
+      let newFilters = [...adjustmentFilters];
+
+      switch (filterType) {
+        case 'blackwhite':
+          if (fabric.Image?.filters?.Grayscale) {
+            newFilters.push(new fabric.Image.filters.Grayscale());
+          }
+          break;
+          
+        case 'sepia':
+          if (fabric.Image?.filters?.Sepia) {
+            newFilters.push(new fabric.Image.filters.Sepia());
+          }
+          break;
+          
+        case 'cyberpunk':
+          // Cyberpunk effect: High contrast + Purple tint
+          if (fabric.Image?.filters?.Contrast) {
+            // Remove existing contrast from adjustments and add cyberpunk contrast
+            newFilters = newFilters.filter(f => !(fabric.Image?.filters?.Contrast && f instanceof fabric.Image.filters.Contrast));
+            newFilters.push(new fabric.Image.filters.Contrast({ contrast: 0.3 }));
+          }
+          if (fabric.Image?.filters?.ColorMatrix) {
+            newFilters.push(new fabric.Image.filters.ColorMatrix({
+              matrix: [
+                1.2, 0, 0.8, 0, 0,
+                0, 0.8, 1.2, 0, 0,
+                0.8, 0, 1.2, 0, 0,
+                0, 0, 0, 1, 0
+              ]
+            }));
+          }
+          break;
+          
+        case 'vivid':
+          // Vivid effect: Increased saturation and slight contrast
+          if (fabric.Image?.filters?.Saturation) {
+            // Remove existing saturation from adjustments and add vivid saturation
+            newFilters = newFilters.filter(f => !(fabric.Image?.filters?.Saturation && f instanceof fabric.Image.filters.Saturation));
+            newFilters.push(new fabric.Image.filters.Saturation({ saturation: 0.4 }));
+          }
+          if (fabric.Image?.filters?.Contrast) {
+            // Remove existing contrast from adjustments and add vivid contrast
+            newFilters = newFilters.filter(f => !(fabric.Image?.filters?.Contrast && f instanceof fabric.Image.filters.Contrast));
+            newFilters.push(new fabric.Image.filters.Contrast({ contrast: 0.2 }));
+          }
+          break;
+          
+        case 'warm':
+          // Warm effect: Orange/yellow tint
+          if (fabric.Image?.filters?.ColorMatrix) {
+            newFilters.push(new fabric.Image.filters.ColorMatrix({
+              matrix: [
+                1.2, 0.1, 0, 0, 0,
+                0.1, 1.1, 0, 0, 0,
+                0, 0, 0.8, 0, 0,
+                0, 0, 0, 1, 0
+              ]
+            }));
+          }
+          break;
+          
+        case 'cool':
+          // Cool effect: Blue tint
+          if (fabric.Image?.filters?.ColorMatrix) {
+            newFilters.push(new fabric.Image.filters.ColorMatrix({
+              matrix: [
+                0.8, 0, 0.1, 0, 0,
+                0, 0.9, 0.1, 0, 0,
+                0.1, 0.1, 1.2, 0, 0,
+                0, 0, 0, 1, 0
+              ]
+            }));
+          }
+          break;
+          
+        case 'hdr':
+          // HDR effect: Enhanced contrast and gamma
+          if (fabric.Image?.filters?.Gamma) {
+            newFilters.push(new fabric.Image.filters.Gamma({ 
+              gamma: [1, 0.8, 0.8] 
+            }));
+          }
+          if (fabric.Image?.filters?.Contrast) {
+            // Remove existing contrast from adjustments and add HDR contrast
+            newFilters = newFilters.filter(f => !(fabric.Image?.filters?.Contrast && f instanceof fabric.Image.filters.Contrast));
+            newFilters.push(new fabric.Image.filters.Contrast({ contrast: 0.25 }));
+          }
+          if (fabric.Image?.filters?.Brightness) {
+            // Remove existing brightness from adjustments and add HDR brightness
+            newFilters = newFilters.filter(f => !(fabric.Image?.filters?.Brightness && f instanceof fabric.Image.filters.Brightness));
+            newFilters.push(new fabric.Image.filters.Brightness({ brightness: 0.1 }));
+          }
+          break;
+      }
+
+      // Apply the new filter set
+      mainImage.filters = newFilters;
+      mainImage.applyFilters();
+      canvas.renderAll();
+      setSelectedFilter(filterType);
+      
+      if (filterType !== 'none') {
+        setEditedImages(prev => new Set(prev).add(selectedImageIndex));
+      }
+    } catch (error) {
+      console.error('Error applying filter:', error);
+      // Fallback to simpler filters if advanced filters are not available
+      if (filterType === 'blackwhite') {
+        // Simple grayscale fallback
+        mainImage.filters = [new fabric.Image.filters.Grayscale()];
+        mainImage.applyFilters();
+        canvas.renderAll();
+        setSelectedFilter(filterType);
+      }
+    }
+  };
+
+  // Crop functions
   const enableCropping = () => {
     const canvas = fabricCanvasRef.current;
     if (!canvas || !fabric || !isImageLoaded) return;
@@ -276,23 +475,18 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
     if (cropRect && mainImage) {
       const cropBounds = cropRect.getBoundingRect();
       
-      // Create a temporary canvas for clean cropping without the red outline
       const tempCanvas = document.createElement('canvas');
       const tempCtx = tempCanvas.getContext('2d');
       
       if (tempCtx) {
-        // Set canvas size to crop dimensions
         tempCanvas.width = cropBounds.width;
         tempCanvas.height = cropBounds.height;
         
-        // Hide the crop rectangle temporarily
         cropRect.visible = false;
         canvas.renderAll();
         
-        // Get the canvas without the crop rectangle
         const cleanCanvas = canvas.toCanvasElement();
         
-        // Draw only the cropped area
         tempCtx.drawImage(
           cleanCanvas,
           cropBounds.left,
@@ -307,7 +501,6 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
         
         const croppedDataURL = tempCanvas.toDataURL('image/png');
         
-        // Load the cropped image
         fabric.Image.fromURL(croppedDataURL, (newImg: any) => {
           canvas.clear();
           
@@ -332,7 +525,6 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
           originalImageRef.current = newImg;
           setIsCropping(false);
           
-          // Mark image as edited
           setEditedImages(prev => new Set(prev).add(selectedImageIndex));
         });
       }
@@ -351,37 +543,23 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
     setIsCropping(false);
   };
 
-  const adjustValue = (type: 'brightness' | 'contrast' | 'saturation', increment: boolean) => {
-    const step = 10;
-    let currentValue = 0;
-    let setter: (value: number) => void;
-    
-    switch (type) {
-      case 'brightness':
-        currentValue = brightness;
-        setter = setBrightness;
-        break;
-      case 'contrast':
-        currentValue = contrast;
-        setter = setContrast;
-        break;
-      case 'saturation':
-        currentValue = saturation;
-        setter = setSaturation;
-        break;
+  const rotateImage = (direction: 'left' | 'right') => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas || !isImageLoaded) return;
+
+    const mainImage = canvas.getObjects().find((obj: any) => obj.id === 'mainImage');
+    if (mainImage) {
+      const currentAngle = mainImage.angle || 0;
+      const newAngle = direction === 'right' ? currentAngle + 90 : currentAngle - 90;
+      
+      mainImage.set('angle', newAngle);
+      canvas.renderAll();
+      
+      setEditedImages(prev => new Set(prev).add(selectedImageIndex));
     }
-    
-    const newValue = increment 
-      ? Math.min(100, currentValue + step)
-      : Math.max(-100, currentValue - step);
-    
-    setter(newValue);
-    applyImageFilter(type, newValue / 100);
-    
-    // Mark image as edited
-    setEditedImages(prev => new Set(prev).add(selectedImageIndex));
   };
 
+  // Adjustment functions
   const applyBrightness = (value: number) => {
     setBrightness(value);
     applyImageFilter('brightness', value / 100);
@@ -414,34 +592,47 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
     if (!mainImage) return;
 
     const existingFilters = mainImage.filters || [];
+    
+    // Remove the specific adjustment filter being updated
     const otherFilters = existingFilters.filter((filter: any) => {
       return !(
-        (filterType === 'brightness' && filter instanceof fabric.Image.filters.Brightness) ||
-        (filterType === 'contrast' && filter instanceof fabric.Image.filters.Contrast) ||
-        (filterType === 'saturation' && filter instanceof fabric.Image.filters.Saturation)
+        (filterType === 'brightness' && fabric.Image?.filters?.Brightness && filter instanceof fabric.Image.filters.Brightness) ||
+        (filterType === 'contrast' && fabric.Image?.filters?.Contrast && filter instanceof fabric.Image.filters.Contrast) ||
+        (filterType === 'saturation' && fabric.Image?.filters?.Saturation && filter instanceof fabric.Image.filters.Saturation)
       );
     });
 
     let newFilter;
     switch (filterType) {
       case 'brightness':
-        newFilter = new fabric.Image.filters.Brightness({ brightness: value });
+        if (fabric.Image?.filters?.Brightness && value !== 0) {
+          newFilter = new fabric.Image.filters.Brightness({ brightness: value });
+        }
         break;
       case 'contrast':
-        newFilter = new fabric.Image.filters.Contrast({ contrast: value });
+        if (fabric.Image?.filters?.Contrast && value !== 0) {
+          newFilter = new fabric.Image.filters.Contrast({ contrast: value });
+        }
         break;
       case 'saturation':
-        newFilter = new fabric.Image.filters.Saturation({ saturation: value });
+        if (fabric.Image?.filters?.Saturation && value !== 0) {
+          newFilter = new fabric.Image.filters.Saturation({ saturation: value });
+        }
         break;
     }
 
-    if (newFilter) {
-      mainImage.filters = [...otherFilters, newFilter];
-      mainImage.applyFilters();
-      canvas.renderAll();
+    // Add the new filter if it exists, otherwise just use the other filters
+    mainImage.filters = newFilter ? [...otherFilters, newFilter] : otherFilters;
+    mainImage.applyFilters();
+    canvas.renderAll();
+    
+    // If we have a selected filter, reapply it to maintain the artistic effect
+    if (selectedFilter && selectedFilter !== 'none') {
+      setTimeout(() => applyFilter(selectedFilter), 50);
     }
   };
 
+  // Frame functions
   const applyFrame = (frameType: string) => {
     const canvas = fabricCanvasRef.current;
     if (!canvas || !fabric || !isImageLoaded) return;
@@ -523,6 +714,25 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
           id: 'frame'
         });
         break;
+      case 'ornate':
+        frame = new fabric.Rect({
+          left: imageBounds.left - frameSize,
+          top: imageBounds.top - frameSize,
+          width: imageBounds.width + frameSize * 2,
+          height: imageBounds.height + frameSize * 2,
+          fill: '#FFD700',
+          stroke: '#B8860B',
+          strokeWidth: 4,
+          selectable: false,
+          id: 'frame',
+          shadow: new fabric.Shadow({
+            color: 'rgba(0,0,0,0.4)',
+            blur: 15,
+            offsetX: 3,
+            offsetY: 3
+          })
+        });
+        break;
     }
 
     if (frame) {
@@ -531,11 +741,11 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
       canvas.renderAll();
       setSelectedFrame(frameType);
       
-      // Mark image as edited
       setEditedImages(prev => new Set(prev).add(selectedImageIndex));
     }
   };
 
+  // Border functions
   const applyBorder = (borderType: string) => {
     const canvas = fabricCanvasRef.current;
     if (!canvas || !fabric || !isImageLoaded) return;
@@ -570,6 +780,9 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
       case 'double':
         strokeDashArray = [];
         break;
+      case 'rounded':
+        strokeDashArray = [];
+        break;
     }
 
     const border = new fabric.Rect({
@@ -581,6 +794,8 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
       stroke: borderColor,
       strokeWidth: borderWidth,
       strokeDashArray: strokeDashArray,
+      rx: borderType === 'rounded' ? 20 : 0,
+      ry: borderType === 'rounded' ? 20 : 0,
       selectable: false,
       id: 'border'
     });
@@ -589,8 +804,73 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
     canvas.renderAll();
     setSelectedBorder(borderType);
     
-    // Mark image as edited
     setEditedImages(prev => new Set(prev).add(selectedImageIndex));
+  };
+
+  // Watermark functions
+  const addTextWatermark = () => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas || !fabric || !isImageLoaded || !watermarkText.trim()) return;
+
+    const existingWatermark = canvas.getObjects().find((obj: any) => obj.id === 'watermark');
+    if (existingWatermark) {
+      canvas.remove(existingWatermark);
+    }
+
+    const textWatermark = new fabric.Text(watermarkText, {
+      left: canvas.getWidth() / 2,
+      top: canvas.getHeight() / 2,
+      fontFamily: 'Arial',
+      fontSize: watermarkSize,
+      fill: watermarkColor,
+      opacity: watermarkOpacity,
+      originX: 'center',
+      originY: 'center',
+      selectable: true,
+      id: 'watermark'
+    });
+
+    canvas.add(textWatermark);
+    canvas.renderAll();
+    
+    setEditedImages(prev => new Set(prev).add(selectedImageIndex));
+  };
+
+  const addImageWatermark = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !fabric || !isImageLoaded) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const imageUrl = e.target?.result as string;
+      
+      fabric.Image.fromURL(imageUrl, (img: any) => {
+        const canvas = fabricCanvasRef.current;
+        if (!canvas) return;
+
+        const existingWatermark = canvas.getObjects().find((obj: any) => obj.id === 'watermark');
+        if (existingWatermark) {
+          canvas.remove(existingWatermark);
+        }
+
+        img.scale(0.2);
+        img.set({
+          left: canvas.getWidth() - 100,
+          top: canvas.getHeight() - 100,
+          opacity: watermarkOpacity,
+          selectable: true,
+          id: 'watermark'
+        });
+
+        canvas.add(img);
+        canvas.renderAll();
+        
+        setEditedImages(prev => new Set(prev).add(selectedImageIndex));
+      });
+    };
+    
+    reader.readAsDataURL(file);
+    event.target.value = "";
   };
 
   const resetImage = () => {
@@ -599,13 +879,13 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
     setSaturation(0);
     setSelectedFrame('none');
     setSelectedBorder('none');
+    setSelectedFilter('none'); // Add filter reset
     setIsCropping(false);
     
     if (currentImages[selectedImageIndex]) {
       loadImageToCanvas(currentImages[selectedImageIndex]);
     }
     
-    // Remove from edited images
     setEditedImages(prev => {
       const newSet = new Set(prev);
       newSet.delete(selectedImageIndex);
@@ -626,7 +906,6 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
       onSave(session.id, selectedImageIndex, dataURL);
       setShowSaveDialog(true);
       
-      // Mark image as edited
       setEditedImages(prev => new Set(prev).add(selectedImageIndex));
     } catch (error) {
       console.error('Save failed:', error);
@@ -657,7 +936,6 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
       const newImages = currentImages.filter((_, index) => index !== imageToDelete);
       setCurrentImages(newImages);
       
-      // Update edited images set
       const newEditedImages = new Set<number>();
       editedImages.forEach(index => {
         if (index < imageToDelete) {
@@ -706,7 +984,7 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
           <h2 className="text-xl font-bold">Photo Editor - {session.customerDetails.name}</h2>
           <div className="flex items-center gap-2">
             <Button 
-              onClick={saveAllImages} 
+              onClick={saveAllImages} // Fix: Add the actual function
               className="bg-green-600 hover:bg-green-700"
               disabled={!isImageLoaded}
             >
@@ -721,230 +999,325 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
 
         <div className="flex flex-1 overflow-hidden">
           {/* Left Toolbar */}
-          <div className="w-64 border-r border-border p-4 overflow-y-auto bg-gray-50 dark:bg-slate-700">
-            <div className="space-y-6">
-              {/* Crop Tool */}
-              <div>
-                <h3 className="font-semibold mb-3 flex items-center">
-                  <Crop className="h-4 w-4 mr-2" />
-                  Crop
-                </h3>
-                {!isCropping ? (
-                  <Button 
-                    onClick={enableCropping} 
-                    className="w-full" 
-                    variant="outline"
-                    disabled={!isImageLoaded}
+          <div className="w-80 border-r border-border p-4 overflow-y-auto bg-gray-50 dark:bg-slate-700">
+            <div className="space-y-4">
+              {/* Tool Categories */}
+              {toolCategories.map((category) => (
+                <div key={category.id} className="border border-gray-200 rounded-lg overflow-hidden">
+                  <Button
+                    variant="ghost"
+                    className={`w-full justify-between p-4 h-auto ${
+                      activeTool === category.id ? 'bg-blue-100 dark:bg-blue-900' : 'hover:bg-gray-100'
+                    }`}
+                    onClick={() => toggleTool(category.id)}
                   >
-                    Start Cropping
+                    <div className="flex items-center gap-3">
+                      <category.icon className="h-5 w-5" />
+                      <span className="font-medium">{category.label}</span>
+                    </div>
+                    {activeTool === category.id ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                   </Button>
-                ) : (
-                  <div className="space-y-2">
-                    <Button onClick={applyCrop} className="w-full bg-green-600 hover:bg-green-700">
-                      Apply Crop
-                    </Button>
-                    <Button onClick={cancelCrop} className="w-full" variant="outline">
-                      Cancel
-                    </Button>
-                  </div>
-                )}
-              </div>
-
-              {/* Brightness */}
-              <div>
-                <h3 className="font-semibold mb-3 flex items-center">
-                  <Sun className="h-4 w-4 mr-2" />
-                  Brightness
-                </h3>
-                <div className="space-y-2">
-                  <Input
-                    type="range"
-                    min="-100"
-                    max="100"
-                    value={brightness}
-                    onChange={(e) => applyBrightness(Number(e.target.value))}
-                    className="w-full"
-                    disabled={!isImageLoaded}
-                  />
-                  <div className="flex items-center justify-between">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => adjustValue('brightness', false)}
-                      disabled={!isImageLoaded || brightness <= -100}
-                    >
-                      <Minus className="h-3 w-3" />
-                    </Button>
-                    <div className="text-sm text-center flex-1">{brightness}%</div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => adjustValue('brightness', true)}
-                      disabled={!isImageLoaded || brightness >= 100}
-                    >
-                      <Plus className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Contrast */}
-              <div>
-                <h3 className="font-semibold mb-3 flex items-center">
-                  <Circle className="h-4 w-4 mr-2" />
-                  Contrast
-                </h3>
-                <div className="space-y-2">
-                  <Input
-                    type="range"
-                    min="-100"
-                    max="100"
-                    value={contrast}
-                    onChange={(e) => applyContrast(Number(e.target.value))}
-                    className="w-full"
-                    disabled={!isImageLoaded}
-                  />
-                  <div className="flex items-center justify-between">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => adjustValue('contrast', false)}
-                      disabled={!isImageLoaded || contrast <= -100}
-                    >
-                      <Minus className="h-3 w-3" />
-                    </Button>
-                    <div className="text-sm text-center flex-1">{contrast}%</div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => adjustValue('contrast', true)}
-                      disabled={!isImageLoaded || contrast >= 100}
-                    >
-                      <Plus className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Saturation */}
-              <div>
-                <h3 className="font-semibold mb-3 flex items-center">
-                  <Palette className="h-4 w-4 mr-2" />
-                  Saturation
-                </h3>
-                <div className="space-y-2">
-                  <Input
-                    type="range"
-                    min="-100"
-                    max="100"
-                    value={saturation}
-                    onChange={(e) => applySaturation(Number(e.target.value))}
-                    className="w-full"
-                    disabled={!isImageLoaded}
-                  />
-                  <div className="flex items-center justify-between">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => adjustValue('saturation', false)}
-                      disabled={!isImageLoaded || saturation <= -100}
-                    >
-                      <Minus className="h-3 w-3" />
-                    </Button>
-                    <div className="text-sm text-center flex-1">{saturation}%</div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => adjustValue('saturation', true)}
-                      disabled={!isImageLoaded || saturation >= 100}
-                    >
-                      <Plus className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Frames */}
-              <div>
-                <h3 className="font-semibold mb-3 flex items-center">
-                  <Square className="h-4 w-4 mr-2" />
-                  Frames
-                </h3>
-                <div className="space-y-2">
-                  {frameOptions.map((frame) => (
-                    <Button
-                      key={frame.value}
-                      variant={selectedFrame === frame.value ? "default" : "outline"}
-                      size="sm"
-                      className="w-full"
-                      onClick={() => applyFrame(frame.value)}
-                      disabled={!isImageLoaded}
-                    >
-                      {frame.label}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Borders */}
-              <div>
-                <h3 className="font-semibold mb-3">Borders</h3>
-                <div className="space-y-3">
-                  <div className="space-y-2">
-                    {borderOptions.map((border) => (
-                      <Button
-                        key={border.value}
-                        variant={selectedBorder === border.value ? "default" : "outline"}
-                        size="sm"
-                        className="w-full"
-                        onClick={() => applyBorder(border.value)}
-                        disabled={!isImageLoaded}
-                      >
-                        {border.label}
-                      </Button>
-                    ))}
-                  </div>
                   
-                  {selectedBorder !== 'none' && (
-                    <>
-                      <div>
-                        <label className="text-sm font-medium">Border Width</label>
-                        <Input
-                          type="range"
-                          min="1"
-                          max="50"
-                          value={borderWidth}
-                          onChange={(e) => {
-                            setBorderWidth(Number(e.target.value));
-                            if (selectedBorder !== 'none') {
-                              applyBorder(selectedBorder);
-                            }
-                          }}
-                          className="w-full"
-                          disabled={!isImageLoaded}
-                        />
-                        <div className="text-sm text-center">{borderWidth}px</div>
-                      </div>
-                      
-                      <div>
-                        <label className="text-sm font-medium">Border Color</label>
-                        <Input
-                          type="color"
-                          value={borderColor}
-                          onChange={(e) => {
-                            setBorderColor(e.target.value);
-                            if (selectedBorder !== 'none') {
-                              applyBorder(selectedBorder);
-                            }
-                          }}
-                          className="w-full h-10"
-                          disabled={!isImageLoaded}
-                        />
-                      </div>
-                    </>
+                  {/* Tool Content */}
+                  {activeTool === category.id && (
+                    <div className="p-4 bg-white dark:bg-slate-800 border-t">
+                      {/* Filter Tools */}
+                      {category.id === 'filter' && (
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-2 gap-2">
+                            {filterOptions.map((filter) => (
+                              <Button
+                                key={filter.value}
+                                variant={selectedFilter === filter.value ? "default" : "outline"}
+                                className="h-16 flex flex-col items-center justify-center p-2 text-xs"
+                                onClick={() => applyFilter(filter.value)}
+                                disabled={!isImageLoaded}
+                                style={{
+                                  borderColor: selectedFilter === filter.value ? filter.color : undefined
+                                }}
+                              >
+                                <span className="text-lg mb-1">{filter.preview}</span>
+                                <span className="text-[10px] leading-tight text-center">{filter.label}</span>
+                              </Button>
+                            ))}
+                          </div>
+                          
+                          {selectedFilter !== 'none' && (
+                            <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                              <p className="text-xs text-blue-700 dark:text-blue-300">
+                                <Filter className="h-3 w-3 inline mr-1" />
+                                Filter "{filterOptions.find(f => f.value === selectedFilter)?.label}" applied
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Crop Tools */}
+                      {category.id === 'crop' && (
+                        <div className="space-y-3">
+                          {!isCropping ? (
+                            <Button 
+                              onClick={enableCropping} 
+                              className="w-full" 
+                              variant="outline"
+                              disabled={!isImageLoaded}
+                            >
+                              <Crop className="h-4 w-4 mr-2" />
+                              Crop Image
+                            </Button>
+                          ) : (
+                            <div className="space-y-2">
+                              <Button onClick={applyCrop} className="w-full bg-green-600 hover:bg-green-700">
+                                Apply Crop
+                              </Button>
+                              <Button onClick={cancelCrop} className="w-full" variant="outline">
+                                Cancel
+                              </Button>
+                            </div>
+                          )}
+                          <div className="flex gap-2">
+                            <Button 
+                              onClick={() => rotateImage('left')} 
+                              variant="outline" 
+                              className="flex-1"
+                              disabled={!isImageLoaded}
+                            >
+                              <RotateCcw className="h-4 w-4 mr-2" />
+                              Rotate Left
+                            </Button>
+                            <Button 
+                              onClick={() => rotateImage('right')} 
+                              variant="outline" 
+                              className="flex-1"
+                              disabled={!isImageLoaded}
+                            >
+                              <RotateCw className="h-4 w-4 mr-2" />
+                              Rotate Right
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Adjustment Tools */}
+                      {category.id === 'adjustment' && (
+                        <div className="space-y-4">
+                          {/* Brightness */}
+                          <div>
+                            <label className="text-sm font-medium mb-2 block">
+                              <Sun className="h-4 w-4 inline mr-2" />
+                              Brightness: {brightness}%
+                            </label>
+                            <Input
+                              type="range"
+                              min="-100"
+                              max="100"
+                              value={brightness}
+                              onChange={(e) => applyBrightness(Number(e.target.value))}
+                              className="w-full"
+                              disabled={!isImageLoaded}
+                            />
+                          </div>
+
+                          {/* Contrast */}
+                          <div>
+                            <label className="text-sm font-medium mb-2 block">
+                              <Circle className="h-4 w-4 inline mr-2" />
+                              Contrast: {contrast}%
+                            </label>
+                            <Input
+                              type="range"
+                              min="-100"
+                              max="100"
+                              value={contrast}
+                              onChange={(e) => applyContrast(Number(e.target.value))}
+                              className="w-full"
+                              disabled={!isImageLoaded}
+                            />
+                          </div>
+
+                          {/* Saturation */}
+                          <div>
+                            <label className="text-sm font-medium mb-2 block">
+                              <Palette className="h-4 w-4 inline mr-2" />
+                              Saturation: {saturation}%
+                            </label>
+                            <Input
+                              type="range"
+                              min="-100"
+                              max="100"
+                              value={saturation}
+                              onChange={(e) => applySaturation(Number(e.target.value))}
+                              className="w-full"
+                              disabled={!isImageLoaded}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Frame Tools */}
+                      {category.id === 'frame' && (
+                        <div className="grid grid-cols-3 gap-2">
+                          {frameOptions.map((frame) => (
+                            <Button
+                              key={frame.value}
+                              variant={selectedFrame === frame.value ? "default" : "outline"}
+                              className="h-16 flex flex-col items-center justify-center p-2"
+                              onClick={() => applyFrame(frame.value)}
+                              disabled={!isImageLoaded}
+                            >
+                              <span className="text-2xl mb-1">{frame.preview}</span>
+                              <span className="text-xs">{frame.label}</span>
+                            </Button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Border Tools */}
+                      {category.id === 'border' && (
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-3 gap-2">
+                            {borderOptions.map((border) => (
+                              <Button
+                                key={border.value}
+                                variant={selectedBorder === border.value ? "default" : "outline"}
+                                className="h-16 flex flex-col items-center justify-center p-2"
+                                onClick={() => applyBorder(border.value)}
+                                disabled={!isImageLoaded}
+                              >
+                                <span className="text-2xl mb-1">{border.preview}</span>
+                                <span className="text-xs">{border.label}</span>
+                              </Button>
+                            ))}
+                          </div>
+                          
+                          {selectedBorder !== 'none' && (
+                            <div className="space-y-3 pt-3 border-t">
+                              <div>
+                                <label className="text-sm font-medium">Border Width: {borderWidth}px</label>
+                                <Input
+                                  type="range"
+                                  min="1"
+                                  max="50"
+                                  value={borderWidth}
+                                  onChange={(e) => {
+                                    setBorderWidth(Number(e.target.value));
+                                    if (selectedBorder !== 'none') {
+                                      applyBorder(selectedBorder);
+                                    }
+                                  }}
+                                  className="w-full"
+                                  disabled={!isImageLoaded}
+                                />
+                              </div>
+                              
+                              <div>
+                                <label className="text-sm font-medium">Border Color</label>
+                                <Input
+                                  type="color"
+                                  value={borderColor}
+                                  onChange={(e) => {
+                                    setBorderColor(e.target.value);
+                                    if (selectedBorder !== 'none') {
+                                      applyBorder(selectedBorder);
+                                    }
+                                  }}
+                                  className="w-full h-10"
+                                  disabled={!isImageLoaded}
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Watermark Tools */}
+                      {category.id === 'watermark' && (
+                        <div className="space-y-4">
+                          {/* Text Watermark */}
+                          <div className="space-y-3">
+                            <h4 className="font-medium flex items-center">
+                              <Type className="h-4 w-4 mr-2" />
+                              Text Watermark
+                            </h4>
+                            <Input
+                              placeholder="Enter watermark text"
+                              value={watermarkText}
+                              onChange={(e) => setWatermarkText(e.target.value)}
+                              disabled={!isImageLoaded}
+                            />
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="text-xs">Size: {watermarkSize}px</label>
+                                <Input
+                                  type="range"
+                                  min="12"
+                                  max="72"
+                                  value={watermarkSize}
+                                  onChange={(e) => setWatermarkSize(Number(e.target.value))}
+                                  disabled={!isImageLoaded}
+                                />
+                              </div>
+                              <div>
+                                <label className="text-xs">Opacity: {Math.round(watermarkOpacity * 100)}%</label>
+                                <Input
+                                  type="range"
+                                  min="0.1"
+                                  max="1"
+                                  step="0.1"
+                                  value={watermarkOpacity}
+                                  onChange={(e) => setWatermarkOpacity(Number(e.target.value))}
+                                  disabled={!isImageLoaded}
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="text-xs">Color</label>
+                              <Input
+                                type="color"
+                                value={watermarkColor}
+                                onChange={(e) => setWatermarkColor(e.target.value)}
+                                className="w-full h-8"
+                                disabled={!isImageLoaded}
+                              />
+                            </div>
+                            <Button
+                              onClick={addTextWatermark}
+                              className="w-full"
+                              disabled={!isImageLoaded || !watermarkText.trim()}
+                            >
+                              Add Text Watermark
+                            </Button>
+                          </div>
+
+                          {/* Image Watermark */}
+                          <div className="space-y-3 pt-3 border-t">
+                            <h4 className="font-medium flex items-center">
+                              <ImageIcon className="h-4 w-4 mr-2" />
+                              Image Watermark
+                            </h4>
+                            <Button
+                              onClick={() => watermarkInputRef.current?.click()}
+                              variant="outline"
+                              className="w-full"
+                              disabled={!isImageLoaded}
+                            >
+                              Choose Image
+                            </Button>
+                            <input
+                              ref={watermarkInputRef}
+                              type="file"
+                              accept="image/*"
+                              onChange={addImageWatermark}
+                              className="hidden"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
-              </div>
+              ))}
             </div>
           </div>
 
@@ -965,7 +1338,7 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
             {/* Save Changes and Reset Buttons below canvas */}
             <div className="mt-4 flex gap-3">
               <Button 
-                onClick={saveCurrentImage}
+                onClick={saveCurrentImage} // Fix: Add the actual function
                 className="bg-green-600 hover:bg-green-700 px-8 py-2"
                 disabled={!isImageLoaded}
               >
