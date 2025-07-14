@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar, Search, ChevronLeft, ChevronRight, Plus, Trash2, Minus, ShoppingCart, Edit } from "lucide-react";
@@ -14,6 +14,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { PhotoEditor } from "./PhotoEditor";
+import { useCart } from "../context/CartContext";
+import { useNavigate } from "react-router-dom";
 
 interface Session {
   id: string;
@@ -114,7 +116,8 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
   const [selectedStatus, setSelectedStatus] = useState<string>("");
   const [sessions, setSessions] = useState<Session[]>(mockSessions);
   const [zoom, setZoom] = useState(1);
-  const [cart, setCart] = useState<{ sessionId: string; photoIndex: number }[]>([]);
+  const { cartItems, addToCart } = useCart();
+  const navigate = useNavigate();
   
   // Warning dialog states
   const [showSessionDeleteDialog, setShowSessionDeleteDialog] = useState(false);
@@ -128,8 +131,28 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
   const [showPhotoEditor, setShowPhotoEditor] = useState(false);
   const [selectedPhotos, setSelectedPhotos] = useState<{ [sessionId: string]: number[] }>({});
 
+  useEffect(() => {
+    const stored = localStorage.getItem("orderedSessions");
+    if (stored) {
+      const orderedIds = JSON.parse(stored);
+      setSessions(prev => prev.map(session =>
+        orderedIds.includes(session.id)
+          ? { ...session, status: "ordered" }
+          : session
+      ));
+    }
+  }, []);
+
+  useEffect(() => {
+    // Keep localStorage in sync if sessions change
+    const orderedIds = sessions.filter(s => s.status === "ordered").map(s => s.id);
+    localStorage.setItem("orderedSessions", JSON.stringify(orderedIds));
+  }, [sessions]);
+
   const handleLogout = () => {
-    window.location.reload();
+    localStorage.removeItem("currentUser");
+    localStorage.removeItem("orderedSessions");
+    window.location.href = "/";
   };
 
   // When logo is clicked, go back to last session (if any), else fallback to first session
@@ -247,51 +270,63 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
   };
 
   const handleAddToCart = () => {
-    const cartItem = { sessionId: selectedSession.id, photoIndex: currentImageIndex };
-    const isAlreadyInCart = cart.some(item => 
-      item.sessionId === cartItem.sessionId && item.photoIndex === cartItem.photoIndex
-    );
-    
-    if (!isAlreadyInCart) {
-      setCart([...cart, cartItem]);
-      alert(`Added photo ${currentImageIndex + 1} from ${selectedSession.customerDetails.name} to cart`);
-    } else {
-      alert('This photo is already in your cart');
-    }
-  };
-
-  const handleGoToCart = () => {
-    if (cart.length === 0) {
-      setShowCartWarningDialog(true);
+    const imageUrl = selectedSession.images[currentImageIndex];
+    if (!imageUrl) return;
+    // Compose a CartItem
+    const cartItem = {
+      id: `${selectedSession.id}-${currentImageIndex}`,
+      name: `${selectedSession.name} - ${currentImageIndex + 1}`,
+      thumb: imageUrl,
+      editInfo: "", // Add edit info if available
+      printSizes: [
+        { label: "4x6", price: 2.99 },
+        { label: "6x8", price: 4.99 },
+      ],
+      selectedSize: "4x6",
+      quantity: 1,
+    };
+    // Prevent duplicate
+    if (cartItems.some(item => item.id === cartItem.id)) {
+      alert("This photo is already in your cart");
       return;
     }
-    setShowCartDialog(true);
+    addToCart(cartItem);
+    alert(`Added photo ${currentImageIndex + 1} from ${selectedSession.customerDetails.name} to cart`);
   };
 
-  const handleSaveEditedImage = (sessionId: string, imageIndex: number, editedImageUrl: string) => {
-    const updatedSessions = sessions.map(session => {
-      if (session.id === sessionId) {
-        const updatedImages = [...session.images];
-        updatedImages[imageIndex] = editedImageUrl;
-        return { ...session, images: updatedImages };
-      }
-      return session;
+  // Calculate the count of cart items (all sessions)
+  const totalCartCount = cartItems.length;
+
+  // Calculate total selected images across all sessions
+  const totalSelectedCount = Object.values(selectedPhotos).reduce((sum, arr) => sum + arr.length, 0);
+
+  const handleProceedToCart = () => {
+    // For each selected photo in each session, add to cart if not already present
+    Object.entries(selectedPhotos).forEach(([sessionId, indices]) => {
+      const session = sessions.find(s => s.id === sessionId);
+      if (!session) return;
+      indices.forEach(index => {
+        const imageUrl = session.images[index];
+        if (!imageUrl) return;
+        const cartItem = {
+          id: `${session.id}-${index}`,
+          name: `${session.name} - ${index + 1}`,
+          thumb: imageUrl,
+          editInfo: "", // Add edit info if available
+          printSizes: [
+            { label: "4x6", price: 2.99 },
+            { label: "6x8", price: 4.99 },
+          ],
+          selectedSize: "4x6",
+          quantity: 1,
+        };
+        if (!cartItems.some(item => item.id === cartItem.id)) {
+          addToCart(cartItem);
+        }
+      });
     });
-
-    setSessions(updatedSessions);
-    
-    // Update selected session if it's the current one
-    if (selectedSession.id === sessionId) {
-      const updatedImages = [...selectedSession.images];
-      updatedImages[imageIndex] = editedImageUrl;
-      setSelectedSession({ ...selectedSession, images: updatedImages });
-    }
-
-    setShowPhotoEditor(false);
+    navigate("/cart");
   };
-
-  // Calculate the count of cart items for the currently selected session
-  const currentSessionCartCount = cart.filter(item => item.sessionId === selectedSession.id).length;
 
   return (
     <div className="h-screen bg-gradient-to-br from-green-50 to-emerald-100 dark:from-slate-900 dark:to-slate-800 flex flex-col overflow-hidden">
@@ -382,9 +417,12 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
                     {getSessionIcon(session.type)}
                   </div>
                   <div className="flex-1 min-w-0 max-w-full">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
                       <h3 className="font-medium text-sm truncate max-w-full">{session.customerDetails.name}</h3>
-                      <span className={`text-xs px-2 py-1 rounded-full border ${getStatusColor(session.status)}`}>{session.status}</span>
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full border font-semibold text-xs shadow-sm ${getStatusColor(session.status)}`}
+                        style={{ minWidth: 70, justifyContent: 'center', letterSpacing: '0.01em' }}>
+                        {session.status}
+                      </span>
                     </div>
                     <p className="text-xs text-muted-foreground font-medium">{session.date}</p>
                   </div>
@@ -395,7 +433,7 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
                       e.stopPropagation();
                       handleDeleteSession(session.id);
                     }}
-                    className="p-1 h-auto hover:bg-red-100 hover:text-red-600 transition-colors flex-shrink-0"
+                    className="p-1 h-auto hover:bg-red-100 hover:text-red-600 transition-colors flex-shrink-0 ml-2"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -672,7 +710,7 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
               <AlertDialogTitle>Selected Photos in This Session</AlertDialogTitle>
               <AlertDialogDescription>
                 {(() => {
-                  const currentSessionCart = cart.filter(item => item.sessionId === selectedSession.id);
+                  const currentSessionCart = cartItems.filter(item => item.id.startsWith(`${selectedSession.id}-`));
                   if (currentSessionCart.length === 0) {
                     return <span>No photos from this session are in your cart.</span>;
                   }
@@ -680,9 +718,9 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
                     <div className="flex flex-wrap gap-3 mt-2">
                       {currentSessionCart.map((item, idx) => (
                         <img
-                          key={item.photoIndex}
-                          src={selectedSession.images[item.photoIndex]}
-                          alt={`Selected photo ${item.photoIndex + 1}`}
+                          key={item.id}
+                          src={item.thumb}
+                          alt={`Selected photo ${idx + 1}`}
                           className="w-20 h-16 object-cover rounded shadow border"
                         />
                       ))}
@@ -711,12 +749,13 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
 
       {/* Add Proceed to Cart button fixed at bottom right */}
       <button
-        onClick={handleGoToCart}
+        onClick={handleProceedToCart}
         className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-bold rounded-full shadow-lg text-lg transition-all"
         style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.18)' }}
+        disabled={totalSelectedCount === 0}
       >
         <ShoppingCart className="h-6 w-6" />
-        Proceed to Cart ({currentSessionCartCount})
+        Proceed to Cart ({totalSelectedCount})
       </button>
 
       {/* Photo Editor */}
