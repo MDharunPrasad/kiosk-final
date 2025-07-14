@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar, Search, ChevronLeft, ChevronRight, Plus, Trash2, Minus, ShoppingCart, Edit } from "lucide-react";
@@ -26,7 +26,7 @@ interface Session {
     location: string;
     date: string;
   };
-  status: "pending" | "ready" | "completed";
+  status: "pending" | "ordered";
   printCount?: number;
 }
 
@@ -36,11 +36,11 @@ const mockSessions: Session[] = [
     name: "Family Portrait",
     date: "2024-07-20",
     type: "Family",
-    status: "ready",
+    status: "pending",
     printCount: 2,
     images: [
-      "https://images.unsplash.com/photo-1472396961693-142e6e269027?w=800&h=600&fit=crop",
-      "https://images.unsplash.com/photo-1582562124811-c09040d0a901?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1465101046530-73398c7f28ca?w=800&h=600&fit=crop",
     ],
     customerDetails: {
       name: "Johnson Family",
@@ -56,8 +56,8 @@ const mockSessions: Session[] = [
     status: "pending",
     printCount: 5,
     images: [
-      "https://images.unsplash.com/photo-1488972685288-c3fd157d7c7a?w=800&h=600&fit=crop",
-      "https://images.unsplash.com/photo-1441057206919-63d19fac2369?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1519125323398-675f0ddb6308?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1465101178521-c1a9136a3b99?w=800&h=600&fit=crop",
     ],
     customerDetails: {
       name: "Sarah & Mike",
@@ -70,11 +70,11 @@ const mockSessions: Session[] = [
     name: "Graduation Photoshoot",
     date: "2024-07-10",
     type: "Graduation",
-    status: "completed",
+    status: "ordered",
     printCount: 3,
     images: [
-      "https://images.unsplash.com/photo-1472396961693-142e6e269027?w=800&h=600&fit=crop",
-      "https://images.unsplash.com/photo-1582562124811-c09040d0a901?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1465101046530-73398c7f28ca?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800&h=600&fit=crop",
     ],
     customerDetails: {
       name: "Emily Rodriguez",
@@ -87,11 +87,11 @@ const mockSessions: Session[] = [
     name: "Corporate Headshots",
     date: "2024-07-05",
     type: "Corporate",
-    status: "ready",
+    status: "pending",
     printCount: 1,
     images: [
-      "https://images.unsplash.com/photo-1488972685288-c3fd157d7c7a?w=800&h=600&fit=crop",
-      "https://images.unsplash.com/photo-1441057206919-63d19fac2369?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1465101178521-c1a9136a3b99?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1519125323398-675f0ddb6308?w=800&h=600&fit=crop",
     ],
     customerDetails: {
       name: "Tech Solutions Inc",
@@ -112,7 +112,10 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string>("");
-  const [sessions, setSessions] = useState<Session[]>(mockSessions);
+  const [sessions, setSessions] = useState<Session[]>(() => {
+    const saved = localStorage.getItem('sessions');
+    return saved ? JSON.parse(saved) : mockSessions;
+  });
   const [zoom, setZoom] = useState(1);
   const [cart, setCart] = useState<{ sessionId: string; photoIndex: number }[]>([]);
   
@@ -126,6 +129,7 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
   
   // Photo editor state
   const [showPhotoEditor, setShowPhotoEditor] = useState(false);
+  const [selectedPhotos, setSelectedPhotos] = useState<{ [sessionId: string]: number[] }>({});
 
   const handleLogout = () => {
     window.location.reload();
@@ -206,8 +210,7 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
   const getStatusColor = (status: string) => {
     const colors = {
       "pending": "bg-yellow-100 text-yellow-800 border-yellow-200",
-      "ready": "bg-green-100 text-green-800 border-green-200",
-      "completed": "bg-blue-100 text-blue-800 border-blue-200"
+      "ordered": "bg-blue-100 text-blue-800 border-blue-200"
     };
     return colors[status as keyof typeof colors] || "bg-gray-100 text-gray-800 border-gray-200";
   };
@@ -268,30 +271,48 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
     setShowCartDialog(true);
   };
 
-  const handleSaveEditedImage = (sessionId: string, imageIndex: number, editedImageUrl: string) => {
-    const updatedSessions = sessions.map(session => {
-      if (session.id === sessionId) {
-        const updatedImages = [...session.images];
-        updatedImages[imageIndex] = editedImageUrl;
-        return { ...session, images: updatedImages };
+  const handleSaveEditedImage = (sessionId: string, arg1: number | string[], arg2?: string) => {
+    if (Array.isArray(arg1)) {
+      // arg1 is the new images array
+      const updatedSessions = sessions.map(session => {
+        if (session.id === sessionId) {
+          return { ...session, images: arg1 };
+        }
+        return session;
+      });
+      setSessions(updatedSessions);
+      if (selectedSession.id === sessionId) {
+        setSelectedSession({ ...selectedSession, images: arg1 });
       }
-      return session;
-    });
-
-    setSessions(updatedSessions);
-    
-    // Update selected session if it's the current one
-    if (selectedSession.id === sessionId) {
-      const updatedImages = [...selectedSession.images];
-      updatedImages[imageIndex] = editedImageUrl;
-      setSelectedSession({ ...selectedSession, images: updatedImages });
+    } else {
+      // arg1 is imageIndex, arg2 is dataURL
+      const imageIndex = arg1;
+      const dataURL = arg2;
+      const updatedSessions = sessions.map(session => {
+        if (session.id === sessionId) {
+          const updatedImages = [...session.images];
+          updatedImages[imageIndex] = dataURL!;
+          return { ...session, images: updatedImages };
+        }
+        return session;
+      });
+      setSessions(updatedSessions);
+      if (selectedSession.id === sessionId) {
+        const updatedImages = [...selectedSession.images];
+        updatedImages[imageIndex] = dataURL!;
+        setSelectedSession({ ...selectedSession, images: updatedImages });
+      }
     }
-
     setShowPhotoEditor(false);
   };
 
-  // Calculate the count of cart items for the currently selected session
-  const currentSessionCartCount = cart.filter(item => item.sessionId === selectedSession.id).length;
+  // Calculate the count of selected photos for the currently selected session
+  const currentSessionSelectedCount = (selectedPhotos[selectedSession.id] || []).length;
+
+  // Save sessions to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('sessions', JSON.stringify(sessions));
+  }, [sessions]);
 
   return (
     <div className="h-screen bg-gradient-to-br from-green-50 to-emerald-100 dark:from-slate-900 dark:to-slate-800 flex flex-col overflow-hidden">
@@ -349,17 +370,19 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
           </div>
 
           {/* Status Filter */}
-          <div className="mb-6">
+          <div className="mb-6 relative">
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-              className="w-full p-2 border border-border rounded-md bg-background"
+              className="w-full p-2 border border-border rounded-md bg-background appearance-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="">All Status</option>
               <option value="pending">Pending</option>
-              <option value="ready">Ready</option>
-              <option value="completed">Completed</option>
+              <option value="ordered">Ordered</option>
             </select>
+            <span className="pointer-events-none absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+              <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><path d="M6 8l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </span>
           </div>
 
           {/* Sessions List - Scrollable */}
@@ -525,25 +548,46 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
               {/* Photo Thumbnails */}
               <div className="grid grid-cols-2 gap-2 lg:gap-3">
                 {selectedSession.images.map((image, index) => {
-                  const cartItem = { sessionId: selectedSession.id, photoIndex: index };
-                  const isInCart = cart.some(item => item.sessionId === cartItem.sessionId && item.photoIndex === cartItem.photoIndex);
+                  const isSelected = (selectedPhotos[selectedSession.id] || []).includes(index);
                   return (
                     <div
                       key={index}
-                      className={`relative cursor-pointer rounded-lg overflow-hidden border-2 transition-all duration-200 hover:scale-[1.02] ${
-                        currentImageIndex === index
-                          ? "border-green-500 shadow-lg ring-2 ring-green-200 dark:ring-green-800"
-                          : "border-gray-300 dark:border-slate-600 hover:border-green-400 hover:shadow-md"
+                      className={`relative rounded-lg overflow-hidden border-2 transition-all duration-200 ${
+                        isSelected
+                          ? "border-green-400 bg-green-50 ring-1 ring-green-200"
+                          : "border-gray-200 bg-white shadow"
                       }`}
                     >
+                      {/* Static tick box for selection */}
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          setSelectedPhotos((prev) => {
+                            const current = prev[selectedSession.id] || [];
+                            if (current.includes(index)) {
+                              // Deselect
+                              return { ...prev, [selectedSession.id]: current.filter(i => i !== index) };
+                            } else {
+                              // Select
+                              return { ...prev, [selectedSession.id]: [...current, index] };
+                            }
+                          });
+                        }}
+                        className="absolute top-1 left-1 z-10 w-5 h-5 accent-green-500 bg-white border border-gray-300 rounded focus:ring-2 focus:ring-green-400 cursor-pointer"
+                        style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}
+                      />
                       {/* 4:3 aspect ratio wrapper, object-cover for gallery look */}
-                      <div className="w-full h-24 lg:h-32 aspect-[4/3] bg-gray-100 flex items-center justify-center rounded-lg overflow-hidden relative">
+                      <div
+                        className="w-full h-24 lg:h-32 aspect-[4/3] flex items-center justify-center rounded-lg overflow-hidden relative cursor-pointer"
+                        onClick={() => setCurrentImageIndex(index)}
+                      >
                         <img
                           src={image}
                           alt={`Thumbnail ${index + 1}`}
                           className="w-full h-full object-cover bg-transparent rounded-lg"
                           loading="lazy"
-                          onClick={() => setCurrentImageIndex(index)}
                           onError={(e) => {
                             // Remove broken image from session
                             const newImages = selectedSession.images.filter((_, i) => i !== index);
@@ -556,30 +600,18 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
                               return session;
                             });
                             setSessions(updatedSessions);
+                            if ((selectedPhotos[selectedSession.id] || []).includes(index)) {
+                              setSelectedPhotos(prev => ({
+                                ...prev,
+                                [selectedSession.id]: (prev[selectedSession.id] || []).filter(i => i !== index)
+                              }));
+                            }
                             if (currentImageIndex >= newImages.length) {
                               setCurrentImageIndex(Math.max(0, newImages.length - 1));
                             }
                           }}
                         />
-                        {isInCart && (
-                          <div className="absolute inset-0 bg-green-200/60 pointer-events-none rounded-lg" />
-                        )}
                       </div>
-                      <button
-                        className={`absolute bottom-1 right-1 rounded-full p-1 shadow transition-colors ${isInCart ? 'bg-green-100 text-green-600' : 'bg-white/80 hover:bg-green-100 text-green-600'}`}
-                        style={{ zIndex: 2 }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (!isInCart) {
-                            setCart([...cart, cartItem]);
-                          } else {
-                            setCart(cart.filter(item => !(item.sessionId === cartItem.sessionId && item.photoIndex === cartItem.photoIndex)));
-                          }
-                        }}
-                        title={isInCart ? "Remove from cart" : "Add to cart"}
-                      >
-                        <ShoppingCart className="h-4 w-4" />
-                      </button>
                       <button
                         className="absolute top-1 right-1 bg-white/80 hover:bg-red-100 text-red-600 rounded-full p-1 shadow"
                         style={{ zIndex: 2 }}
@@ -709,7 +741,7 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
         style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.18)' }}
       >
         <ShoppingCart className="h-6 w-6" />
-        Proceed to Cart ({currentSessionCartCount})
+        Proceed to Cart ({currentSessionSelectedCount})
       </button>
 
       {/* Photo Editor */}

@@ -78,13 +78,13 @@ function AuthDialog({ onLogin }: { onLogin?: (role: string, username?: string) =
 	if (!selectedRole) {
 		return (
 			<div className="min-h-screen flex flex-col items-center justify-center bg-background">
-				<div className="flex flex-col items-center mb-12">
-					<div className="flex size-28 shrink-0 items-center justify-center rounded-3xl bg-gradient-to-br from-blue-500 to-purple-500 mb-6">
+				<div className="flex flex-col items-center mb-8">
+					<div className="flex size-20 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-purple-500 mb-4">
 						<svg
 							className="stroke-white"
 							xmlns="http://www.w3.org/2000/svg"
-							width="64"
-							height="64"
+							width="40"
+							height="40"
 							viewBox="0 0 32 32"
 							aria-hidden="true"
 						>
@@ -93,30 +93,30 @@ function AuthDialog({ onLogin }: { onLogin?: (role: string, username?: string) =
 							<circle cx="16" cy="18" r="2" fill="#6366f1" />
 						</svg>
 					</div>
-					<h1 className="text-5xl font-extrabold text-center mb-3 tracking-tight">
+					<h1 className="text-3xl font-extrabold text-center mb-2 tracking-tight">
 						PhotoKiosk Pro
 					</h1>
-					<p className="text-xl text-muted-foreground text-center mb-10">
+					<p className="text-base text-muted-foreground text-center mb-6">
 						Professional Studio Management System
 					</p>
 				</div>
-				<div className="flex flex-col md:flex-row gap-10 justify-center items-center w-full max-w-6xl">
+				<div className="flex flex-col md:flex-row gap-4 justify-center items-center w-full max-w-3xl">
 					{ROLES.map((role) => (
 						<div
 							key={role.key}
-							className="flex flex-col items-center bg-white rounded-2xl shadow-2xl p-10 w-96 scale-105 hover:scale-110 transition-transform duration-200 border-2 border-blue-100"
+							className="flex flex-col items-center bg-white rounded-xl shadow-xl p-5 w-72 scale-100 hover:scale-105 transition-transform duration-200 border border-blue-100"
 						>
 							<div
-								className={`flex size-20 items-center justify-center rounded-xl ${role.iconBg} mb-5`}
+								className={`flex size-12 items-center justify-center rounded-lg ${role.iconBg} mb-3`}
 							>
 								{role.icon}
 							</div>
-							<h2 className="text-2xl font-bold mb-2">{role.label}</h2>
-							<p className="text-base text-muted-foreground mb-6 text-center">
+							<h2 className="text-lg font-bold mb-1">{role.label}</h2>
+							<p className="text-sm text-muted-foreground mb-4 text-center">
 								{role.description}
 							</p>
 							<Button
-								className={`w-full h-12 text-lg ${role.btnBg}`}
+								className={`w-full h-10 text-base ${role.btnBg}`}
 								onClick={() => setSelectedRole(role.key)}
 							>
 								Login as {role.label}
@@ -132,27 +132,27 @@ function AuthDialog({ onLogin }: { onLogin?: (role: string, username?: string) =
 	const roleObj = ROLES.find((r) => r.key === selectedRole);
 	return (
 		<div className="min-h-screen flex items-center justify-center bg-background">
-			<div className="w-full max-w-[480px] p-12 border bg-background rounded-2xl shadow-2xl shadow-black/5 flex flex-col items-center">
-				<div className="flex flex-col items-center gap-4 mb-8">
+			<div className="w-full max-w-[350px] p-6 border bg-background rounded-xl shadow-xl shadow-black/5 flex flex-col items-center">
+				<div className="flex flex-col items-center gap-2 mb-6">
 					<div
-						className={`flex size-20 shrink-0 items-center justify-center rounded-xl ${roleObj?.iconBg}`}
+						className={`flex size-12 shrink-0 items-center justify-center rounded-lg ${roleObj?.iconBg}`}
 					>
 						{roleObj?.icon}
 					</div>
-					<h2 className="text-2xl font-bold tracking-tight text-center">
+					<h2 className="text-xl font-bold tracking-tight text-center">
 						Login as {roleObj?.label}
 					</h2>
 				</div>
 				<form
-					className="space-y-8 w-full"
+					className="space-y-6 w-full"
 					onSubmit={(e) => {
 						e.preventDefault();
 						onLogin && onLogin(selectedRole!, username);
 					}}
 				>
-					<div className="space-y-6">
-						<div className="space-y-2">
-							<Label htmlFor="username" className="text-lg">Username</Label>
+					<div className="space-y-4">
+						<div className="space-y-1">
+							<Label htmlFor="username" className="text-base">Username</Label>
 							<Input
 								id="username"
 								placeholder="Enter your username"
@@ -160,11 +160,11 @@ function AuthDialog({ onLogin }: { onLogin?: (role: string, username?: string) =
 								value={username}
 								onChange={(e) => setUsername(e.target.value)}
 								required
-								className="h-12 text-base"
+								className="h-10 text-sm"
 							/>
 						</div>
-						<div className="space-y-2">
-							<Label htmlFor="password" className="text-lg">Password</Label>
+						<div className="space-y-1">
+							<Label htmlFor="password" className="text-base">Password</Label>
 							<Input
 								id="password"
 								placeholder="Enter your password"
@@ -172,17 +172,17 @@ function AuthDialog({ onLogin }: { onLogin?: (role: string, username?: string) =
 								value={password}
 								onChange={(e) => setPassword(e.target.value)}
 								required
-								className="h-12 text-base"
+								className="h-10 text-sm"
 							/>
 						</div>
 					</div>
-					<Button type="submit" className={`w-full h-12 text-lg mt-4 ${roleObj?.btnBg}`}>
+					<Button type="submit" className={`w-full h-10 text-base mt-2 ${roleObj?.btnBg}`}>
 						Sign in
 					</Button>
 					<Button
 						type="button"
 						variant="ghost"
-						className="w-full h-12 text-lg mt-2"
+						className="w-full h-10 text-base mt-1"
 						onClick={() => setSelectedRole(null)}
 					>
 						Back
