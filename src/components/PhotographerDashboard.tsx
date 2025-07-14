@@ -114,7 +114,9 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
   const [photoToDelete, setPhotoToDelete] = useState<{ sessionId: string; photoIndex: number } | null>(null);
 
   const handleLogout = () => {
-    window.location.reload();
+    localStorage.removeItem("currentUser");
+    localStorage.removeItem("orderedSessions");
+    window.location.href = "/";
   };
 
   // When logo is clicked, go back to last session (if any), else fallback to first session

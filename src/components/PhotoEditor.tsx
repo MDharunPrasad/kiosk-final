@@ -897,19 +897,82 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
     const canvas = fabricCanvasRef.current;
     if (!canvas || !isImageLoaded) return;
 
-    try {
-      const dataURL = canvas.toDataURL({
-        format: "png",
-        quality: 1,
-      });
-
-      onSave(session.id, selectedImageIndex, dataURL);
-      setShowSaveDialog(true);
-      
-      setEditedImages(prev => new Set(prev).add(selectedImageIndex));
-    } catch (error) {
-      console.error('Save failed:', error);
-      alert('Save failed due to image security restrictions.');
+    // Check if crop rectangle is present, and apply crop if so
+    const cropRect = canvas.getObjects().find((obj) => obj.id === 'cropRect');
+    if (cropRect) {
+      const mainImage = canvas.getObjects().find((obj) => obj.id === 'mainImage');
+      if (mainImage) {
+        const cropBounds = cropRect.getBoundingRect();
+        const tempCanvas = document.createElement('canvas');
+        const tempCtx = tempCanvas.getContext('2d');
+        if (tempCtx) {
+          tempCanvas.width = cropBounds.width;
+          tempCanvas.height = cropBounds.height;
+          // Remove crop rectangle from canvas before rendering
+          canvas.remove(cropRect);
+          canvas.renderAll();
+          const cleanCanvas = canvas.toCanvasElement();
+          tempCtx.drawImage(
+            cleanCanvas,
+            cropBounds.left,
+            cropBounds.top,
+            cropBounds.width,
+            cropBounds.height,
+            0,
+            0,
+            cropBounds.width,
+            cropBounds.height
+          );
+          const croppedDataURL = tempCanvas.toDataURL('image/png');
+          // Replace main image with cropped image synchronously
+          fabric.Image.fromURL(croppedDataURL, (newImg) => {
+            canvas.clear();
+            const canvasWidth = canvas.getWidth();
+            const canvasHeight = canvas.getHeight();
+            const newScale = Math.min(canvasWidth / newImg.width, canvasHeight / newImg.height) * 0.8;
+            newImg.scale(newScale);
+            newImg.set({
+              left: canvasWidth / 2,
+              top: canvasHeight / 2,
+              originX: 'center',
+              originY: 'center',
+              selectable: false,
+              evented: false,
+              id: 'mainImage',
+            });
+            canvas.add(newImg);
+            canvas.renderAll();
+            originalImageRef.current = newImg;
+            setIsCropping(false);
+            setEditedImages((prev) => new Set(prev).add(selectedImageIndex));
+            // Now save the cropped image
+            try {
+              const dataURL = canvas.toDataURL({ format: 'png', quality: 1 });
+              onSave(session.id, selectedImageIndex, dataURL);
+              setShowSaveDialog(true);
+              setEditedImages((prev) => new Set(prev).add(selectedImageIndex));
+            } catch (error) {
+              console.error('Save failed:', error);
+              alert('Save failed due to image security restrictions.');
+            }
+          }, { crossOrigin: 'anonymous' });
+          return; // Don't run the rest of saveCurrentImage, as save is handled in callback
+        }
+      }
+    } else {
+      // No crop rectangle, save as usual
+      try {
+        const dataURL = canvas.toDataURL({
+          format: 'png',
+          quality: 1,
+        });
+        onSave(session.id, selectedImageIndex, dataURL);
+        setShowSaveDialog(true);
+        setEditedImages((prev) => new Set(prev).add(selectedImageIndex));
+      } catch (error) {
+        console.error('Save failed:', error);
+        alert('Save failed due to image security restrictions.');
+      }
     }
   };
 
