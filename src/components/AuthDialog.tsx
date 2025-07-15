@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
+import AuthService, { User } from "@/services/AuthService";
 
 const ROLES = [
 	{
@@ -69,10 +70,56 @@ const ROLES = [
 	},
 ];
 
-function AuthDialog({ onLogin }: { onLogin?: (role: string, username?: string) => void }) {
+interface AuthDialogProps {
+	onLogin?: (user: User, token: string) => void;
+}
+
+function AuthDialog({ onLogin }: AuthDialogProps) {
 	const [selectedRole, setSelectedRole] = useState<string | null>(null);
 	const [username, setUsername] = useState<string>("");
 	const [password, setPassword] = useState<string>("");
+	const [isLoading, setIsLoading] = useState<boolean>(false);
+	const [error, setError] = useState<string>("");
+
+	const authService = AuthService.getInstance();
+
+	const handleLogin = async (e: React.FormEvent) => {
+		e.preventDefault();
+		setIsLoading(true);
+		setError("");
+
+		try {
+			const { user, token } = await authService.login({
+				username,
+				password,
+			});
+
+			// Verify that the user's role matches the selected role
+			if (user.role !== selectedRole) {
+				setError(`Access denied. Your account role (${user.role}) does not match the selected role (${selectedRole}).`);
+				setIsLoading(false);
+				return;
+			}
+
+			// Clear form
+			setUsername("");
+			setPassword("");
+			
+			// Call the onLogin callback with user and token
+			onLogin?.(user, token);
+		} catch (err) {
+			setError(err instanceof Error ? err.message : "Login failed. Please try again.");
+		} finally {
+			setIsLoading(false);
+		}
+	};
+
+	const resetForm = () => {
+		setSelectedRole(null);
+		setUsername("");
+		setPassword("");
+		setError("");
+	};
 
 	// First page: role selection
 	if (!selectedRole) {
@@ -143,13 +190,14 @@ function AuthDialog({ onLogin }: { onLogin?: (role: string, username?: string) =
 						Login as {roleObj?.label}
 					</h2>
 				</div>
-				<form
-					className="space-y-6 w-full"
-					onSubmit={(e) => {
-						e.preventDefault();
-						onLogin && onLogin(selectedRole!, username);
-					}}
-				>
+
+				{error && (
+					<div className="w-full mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+						<p className="text-sm text-red-600">{error}</p>
+					</div>
+				)}
+
+				<form className="space-y-6 w-full" onSubmit={handleLogin}>
 					<div className="space-y-4">
 						<div className="space-y-1">
 							<Label htmlFor="username" className="text-base">Username</Label>
@@ -160,6 +208,7 @@ function AuthDialog({ onLogin }: { onLogin?: (role: string, username?: string) =
 								value={username}
 								onChange={(e) => setUsername(e.target.value)}
 								required
+								disabled={isLoading}
 								className="h-10 text-sm"
 							/>
 						</div>
@@ -172,18 +221,24 @@ function AuthDialog({ onLogin }: { onLogin?: (role: string, username?: string) =
 								value={password}
 								onChange={(e) => setPassword(e.target.value)}
 								required
+								disabled={isLoading}
 								className="h-10 text-sm"
 							/>
 						</div>
 					</div>
-					<Button type="submit" className={`w-full h-10 text-base mt-2 ${roleObj?.btnBg}`}>
-						Sign in
+					<Button 
+						type="submit" 
+						className={`w-full h-10 text-base mt-2 ${roleObj?.btnBg}`}
+						disabled={isLoading}
+					>
+						{isLoading ? "Signing in..." : "Sign in"}
 					</Button>
 					<Button
 						type="button"
 						variant="ghost"
 						className="w-full h-10 text-base mt-1"
-						onClick={() => setSelectedRole(null)}
+						onClick={resetForm}
+						disabled={isLoading}
 					>
 						Back
 					</Button>
