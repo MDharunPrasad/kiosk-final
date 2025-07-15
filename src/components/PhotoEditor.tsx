@@ -48,6 +48,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { HexColorPicker } from "react-colorful";
 
 // Dynamic import for fabric
 let fabric: any;
@@ -899,7 +900,9 @@ export function PhotoEditor({
 
     // Get the exact bounds of the main image
     const imageBounds = mainImage.getBoundingRect(true);
-    
+    const centerX = mainImage.left;
+    const centerY = mainImage.top;
+
     let borderRect;
     let strokeDashArray: number[] | undefined;
 
@@ -922,8 +925,10 @@ export function PhotoEditor({
     }
 
     borderRect = new fabric.Rect({
-      left: imageBounds.left - borderWidth / 2,
-      top: imageBounds.top - borderWidth / 2,
+      left: centerX,
+      top: centerY,
+      originX: 'center',
+      originY: 'center',
       width: imageBounds.width + borderWidth,
       height: imageBounds.height + borderWidth,
       fill: 'transparent',
@@ -940,8 +945,10 @@ export function PhotoEditor({
     if (borderType === 'double') {
       // Create inner border for double effect
       const innerBorder = new fabric.Rect({
-        left: imageBounds.left + borderWidth / 2,
-        top: imageBounds.top + borderWidth / 2,
+        left: centerX,
+        top: centerY,
+        originX: 'center',
+        originY: 'center',
         width: imageBounds.width - borderWidth,
         height: imageBounds.height - borderWidth,
         fill: 'transparent',
@@ -977,7 +984,7 @@ export function PhotoEditor({
       fontFamily: 'Arial',
       fontSize: watermarkSize,
       fill: watermarkColor,
-      opacity: watermarkOpacity,
+      opacity: watermarkOpacity, // <-- ensure opacity is set
       selectable: true,
       evented: true,
       id: 'textWatermark'
@@ -1081,6 +1088,39 @@ export function PhotoEditor({
       }
     };
   }, [brightness, contrast, saturation, selectedFilter, selectedFrame, selectedBorder]);
+
+  // Live update watermark size
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas || !fabric) return;
+    const textWatermark = canvas.getObjects().find((obj) => obj.id === 'textWatermark');
+    if (textWatermark) {
+      textWatermark.set({ fontSize: watermarkSize });
+      canvas.renderAll();
+    }
+  }, [watermarkSize]);
+
+  // Live update watermark opacity
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas || !fabric) return;
+    const textWatermark = canvas.getObjects().find((obj) => obj.id === 'textWatermark');
+    if (textWatermark) {
+      textWatermark.set({ opacity: watermarkOpacity });
+      canvas.renderAll();
+    }
+  }, [watermarkOpacity]);
+
+  // Live update watermark color
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas || !fabric) return;
+    const textWatermark = canvas.getObjects().find((obj) => obj.id === 'textWatermark');
+    if (textWatermark) {
+      textWatermark.set({ fill: watermarkColor });
+      canvas.renderAll();
+    }
+  }, [watermarkColor]);
 
   if (!fabricLoaded) {
     return (
@@ -1452,7 +1492,7 @@ export function PhotoEditor({
                                   type="range"
                                   min="0.1"
                                   max="1"
-                                  step="0.1"
+                                  step="0.01"
                                   value={watermarkOpacity}
                                   onChange={(e) => setWatermarkOpacity(Number(e.target.value))}
                                   disabled={!isImageLoaded}
@@ -1460,7 +1500,40 @@ export function PhotoEditor({
                               </div>
                             </div>
                             <div>
-                              <label className="text-xs">Color</label>
+                              <label className="text-xs mb-1 block">Color</label>
+                              {/* Popular color swatches */}
+                              <div className="flex gap-2 mb-2">
+                                {[
+                                  { name: 'Black', value: '#000000' },
+                                  { name: 'White', value: '#FFFFFF' },
+                                  { name: 'Brown', value: '#8B4513' },
+                                  { name: 'Red', value: '#FF0000' },
+                                  { name: 'Blue', value: '#0074D9' },
+                                  { name: 'Green', value: '#2ECC40' },
+                                  { name: 'Yellow', value: '#FFDC00' },
+                                ].map((swatch) => (
+                                  <button
+                                    key={swatch.value}
+                                    type="button"
+                                    className={`w-6 h-6 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all duration-150 ${watermarkColor.toLowerCase() === swatch.value.toLowerCase() ? 'border-blue-500 scale-110' : 'border-gray-300'}`}
+                                    style={{ backgroundColor: swatch.value }}
+                                    onClick={() => setWatermarkColor(swatch.value)}
+                                    aria-label={swatch.name}
+                                  />
+                                ))}
+                                {/* Preview of current color */}
+                                <div className="w-6 h-6 rounded-full border-2 border-dashed border-gray-400 flex items-center justify-center ml-2" title="Current Color Preview">
+                                  <div style={{ backgroundColor: watermarkColor, width: '1.25rem', height: '1.25rem', borderRadius: '9999px' }} />
+                                </div>
+                              </div>
+                              {/* Color wheel for custom color */}
+                              <div className="flex justify-center my-2">
+                                <HexColorPicker 
+                                  color={watermarkColor} 
+                                  onChange={setWatermarkColor} 
+                                  style={{ width: 160, height: 160, borderRadius: '9999px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
+                                />
+                              </div>
                               <Input
                                 type="color"
                                 value={watermarkColor}
@@ -1564,25 +1637,23 @@ export function PhotoEditor({
               {currentImages.map((image, index) => (
                 <div
                   key={index}
-                  className={`relative cursor-pointer rounded-lg overflow-hidden border-2 transition-all duration-200 hover:scale-[1.02] ${
+                  className={`relative cursor-pointer overflow-hidden transition-all duration-200 ${
                     selectedImageIndex === index
-                      ? "border-blue-500 shadow-lg ring-2 ring-blue-200"
-                      : "border-gray-300 hover:border-blue-400 hover:shadow-md"
+                      ? "shadow-lg" // Optional: subtle shadow for selection
+                      : ""
                   }`}
+                  style={{ borderRadius: '1rem' }}
                   onClick={() => setSelectedImageIndex(index)}
                 >
-                  {/* 1. Fix right sidebar image preview to be truly square */}
-                  {/* Change the preview container to w-32 h-32 and remove aspect-square */}
-                  <div className="w-32 h-32 bg-gray-100 flex items-center justify-center rounded-lg overflow-hidden">
+                  <div className="w-full aspect-square flex items-center justify-center overflow-hidden" style={{ borderRadius: '1rem' }}>
                     <img
                       src={image}
                       alt={`Thumbnail ${index + 1}`}
-                      className="w-full h-full object-cover object-center bg-gray-100"
-                      style={{ aspectRatio: '1 / 1', display: 'block' }}
+                      className="w-full h-full object-cover"
                       loading="lazy"
+                      style={{ display: 'block' }}
                     />
                   </div>
-                  
                   {/* Edited Badge */}
                   {editedImages.has(index) && (
                     <div className="absolute top-1 left-1 bg-green-500 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
@@ -1590,9 +1661,8 @@ export function PhotoEditor({
                       Edited
                     </div>
                   )}
-                  
                   {selectedImageIndex === index && (
-                    <div className="absolute inset-0 bg-blue-500 bg-opacity-20 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black bg-opacity-10 flex items-center justify-center pointer-events-none">
                       <span className="text-white font-semibold">Editing</span>
                     </div>
                   )}
@@ -1602,43 +1672,6 @@ export function PhotoEditor({
           </div>
         </div>
       </div>
-
-      {/* Save Success Dialog */}
-      <AlertDialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Image Saved Successfully!</AlertDialogTitle>
-            <AlertDialogDescription>
-              The current image has been saved. You can continue editing other images or close the editor.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogAction onClick={() => setShowSaveDialog(false)}>
-              Continue Editing
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Image Permanently?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. The image will be permanently deleted from the session.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={confirmDeleteImage}>
-              Delete Permanently
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

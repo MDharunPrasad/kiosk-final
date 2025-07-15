@@ -601,13 +601,12 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
                   return (
                     <div
                       key={index}
-                      className={`relative rounded-lg overflow-hidden border-2 transition-all duration-200 ${
+                      className={`relative rounded-lg overflow-hidden transition-all duration-200 ${
                         isSelected
-                          ? "border-green-400 bg-green-50 ring-1 ring-green-200"
-                          : "border-gray-200 bg-white shadow"
+                          ? "ring-2 ring-blue-400 bg-blue-50"
+                          : "bg-white"
                       }`}
                       onClick={() => setCurrentImageIndex(index)}
-                      // Now clicking a thumbnail will update the main image
                     >
                       {/* Static tick box for selection */}
                       <input
@@ -628,8 +627,8 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
                         className="absolute top-1 left-1 z-10 w-5 h-5 accent-green-500 bg-white border border-gray-300 rounded focus:ring-2 focus:ring-green-400 cursor-pointer"
                         style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}
                       />
-                      {/* 4:3 aspect ratio wrapper, object-cover for gallery look */}
-                      <div className="w-full h-24 lg:h-32 aspect-[4/3] flex items-center justify-center rounded-lg overflow-hidden relative">
+                      {/* Square aspect ratio wrapper, object-cover for gallery look */}
+                      <div className="w-full h-24 lg:h-32 aspect-square flex items-center justify-center rounded-lg overflow-hidden relative">
                         <img
                           src={image}
                           alt={`Thumbnail ${index + 1}`}
