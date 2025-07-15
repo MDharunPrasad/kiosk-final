@@ -870,7 +870,7 @@ export function PhotoEditor({
     if (frameRect) {
       canvas.add(frameRect);
       canvas.sendToBack(frameRect);
-      canvas.bringForward(mainImage);
+      canvas.bringToFront(mainImage);
       canvas.renderAll();
       setSelectedFrame(frameType);
       setEditedImages(prev => new Set(prev).add(selectedImageIndex));
@@ -922,10 +922,10 @@ export function PhotoEditor({
     }
 
     borderRect = new fabric.Rect({
-      left: imageBounds.left,
-      top: imageBounds.top,
-      width: imageBounds.width,
-      height: imageBounds.height,
+      left: imageBounds.left - borderWidth / 2,
+      top: imageBounds.top - borderWidth / 2,
+      width: imageBounds.width + borderWidth,
+      height: imageBounds.height + borderWidth,
       fill: 'transparent',
       stroke: borderColor,
       strokeWidth: borderWidth,
@@ -940,10 +940,10 @@ export function PhotoEditor({
     if (borderType === 'double') {
       // Create inner border for double effect
       const innerBorder = new fabric.Rect({
-        left: imageBounds.left + borderWidth,
-        top: imageBounds.top + borderWidth,
-        width: imageBounds.width - (borderWidth * 2),
-        height: imageBounds.height - (borderWidth * 2),
+        left: imageBounds.left + borderWidth / 2,
+        top: imageBounds.top + borderWidth / 2,
+        width: imageBounds.width - borderWidth,
+        height: imageBounds.height - borderWidth,
         fill: 'transparent',
         stroke: borderColor,
         strokeWidth: Math.max(1, borderWidth / 3),
@@ -1155,12 +1155,6 @@ export function PhotoEditor({
                             </Button>
                           ) : (
                             <div className="space-y-2">
-                              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                                <p className="text-sm text-blue-700 dark:text-blue-300">
-                                  <Crop className="h-4 w-4 inline mr-2" />
-                                  Crop mode active. Adjust the red rectangle on the image, then click "Save Changes" to apply the crop.
-                                </p>
-                              </div>
                               <Button onClick={cancelCrop} className="w-full" variant="outline">
                                 Cancel Crop
                               </Button>
@@ -1202,6 +1196,7 @@ export function PhotoEditor({
                               type="range"
                               min="-100"
                               max="100"
+                              step="1"
                               value={brightness}
                               onChange={(e) => applyBrightness(Number(e.target.value))}
                               className="w-full"
@@ -1239,6 +1234,7 @@ export function PhotoEditor({
                               type="range"
                               min="-100"
                               max="100"
+                              step="1"
                               value={contrast}
                               onChange={(e) => applyContrast(Number(e.target.value))}
                               className="w-full"
@@ -1276,6 +1272,7 @@ export function PhotoEditor({
                               type="range"
                               min="-100"
                               max="100"
+                              step="1"
                               value={saturation}
                               onChange={(e) => applySaturation(Number(e.target.value))}
                               className="w-full"
@@ -1574,11 +1571,14 @@ export function PhotoEditor({
                   }`}
                   onClick={() => setSelectedImageIndex(index)}
                 >
-                  <div className="w-full h-32 aspect-[4/3] bg-gray-100 flex items-center justify-center rounded-lg overflow-hidden">
+                  {/* 1. Fix right sidebar image preview to be truly square */}
+                  {/* Change the preview container to w-32 h-32 and remove aspect-square */}
+                  <div className="w-32 h-32 bg-gray-100 flex items-center justify-center rounded-lg overflow-hidden">
                     <img
                       src={image}
                       alt={`Thumbnail ${index + 1}`}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover object-center bg-gray-100"
+                      style={{ aspectRatio: '1 / 1', display: 'block' }}
                       loading="lazy"
                     />
                   </div>
