@@ -446,28 +446,31 @@ export function PhotoEditor({
     if (!canvas || !isImageLoaded) return;
 
     try {
-      const dataURL = canvas.toDataURL({
+      // Get the current image's data URL
+      const currentDataURL = canvas.toDataURL({
         format: "png",
         quality: 1,
       });
 
-      // Update local currentImages state immediately
-      setCurrentImages(prev => {
-        const newImages = [...prev];
-        newImages[selectedImageIndex] = dataURL;
-        return newImages;
+      // Update the current image in local state
+      const updatedImages = [...currentImages];
+      updatedImages[selectedImageIndex] = currentDataURL;
+      setCurrentImages(updatedImages);
+
+      // Save all images (including the current one) through the parent's save handler
+      updatedImages.forEach((imageUrl, index) => {
+        onSave(session.id, index, imageUrl);
       });
 
-      // Call the parent's save handler
-      onSave(session.id, selectedImageIndex, dataURL);
-      
-      // Mark this image as edited
-      setEditedImages(prev => new Set(prev).add(selectedImageIndex));
-      
-      alert('Image saved successfully!');
+      // Mark all images as edited
+      const allIndices = new Set(Array.from({ length: updatedImages.length }, (_, i) => i));
+      setEditedImages(allIndices);
+
+      // Close the photo editor after saving all images
+      onClose();
     } catch (error) {
       console.error('Save all failed:', error);
-      alert('Save failed due to image security restrictions.');
+      alert('Save all failed due to image security restrictions.');
     }
   };
 
@@ -1105,7 +1108,7 @@ export function PhotoEditor({
               disabled={!isImageLoaded}
             >
               <Save className="h-4 w-4 mr-2" />
-              Save Now
+              Save All
             </Button>
             <Button onClick={onClose} variant="ghost" size="icon">
               <X className="h-4 w-4" />
