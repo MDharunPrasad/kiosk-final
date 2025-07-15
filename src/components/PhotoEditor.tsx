@@ -19,8 +19,26 @@ import {
   Image as ImageIcon,
   ChevronDown,
   ChevronRight,
-  Filter // Add Filter icon
+  Filter
 } from "lucide-react";
+// Import React Icons for filters and frames
+import { 
+  FaRegCircle, 
+  FaSquare, 
+  FaRegSquare, 
+  FaBorderAll,
+  FaPalette,
+  FaEye,
+  FaFire,
+  FaSnowflake,
+  FaSun,
+  FaMoon,
+  FaGem,
+  FaImage,
+  FaCamera,
+  FaDesktop,
+  FaMobile
+} from 'react-icons/fa';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,6 +65,8 @@ interface Session {
   };
   status: "pending" | "ready" | "completed";
   printCount?: number;
+  editedImages?: number[];
+  originalImages?: string[];
 }
 
 interface PhotoEditorProps {
@@ -54,72 +74,91 @@ interface PhotoEditorProps {
   onClose: () => void;
   onSave: (sessionId: string, imageIndex: number, editedImageUrl: string) => void;
   onDeleteImage?: (sessionId: string, imageIndex: number) => void;
+  initialSelectedIndex?: number;
 }
 
-export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEditorProps) {
+export function PhotoEditor({ 
+  session, 
+  onClose, 
+  onSave, 
+  onDeleteImage, 
+  initialSelectedIndex = 0 
+}: PhotoEditorProps) {
+  // Canvas and fabric refs
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fabricCanvasRef = useRef<any>(null);
   const originalImageRef = useRef<any>(null);
   const watermarkInputRef = useRef<HTMLInputElement>(null);
+
+  // Core state variables - Make sure these are declared at the top
   const [fabricLoaded, setFabricLoaded] = useState(false);
-  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(initialSelectedIndex); // This line must be present
   const [activeTool, setActiveTool] = useState<string>("");
+  const [isImageLoaded, setIsImageLoaded] = useState(false);
+  const [currentImages, setCurrentImages] = useState<string[]>(session.images);
+  const [editedImages, setEditedImages] = useState<Set<number>>(
+    new Set(session.editedImages || [])
+  );
+
+  // Adjustment state
   const [brightness, setBrightness] = useState(0);
   const [contrast, setContrast] = useState(0);
   const [saturation, setSaturation] = useState(0);
+
+  // Tool state
   const [isCropping, setIsCropping] = useState(false);
   const [selectedFrame, setSelectedFrame] = useState<string>("none");
   const [selectedBorder, setSelectedBorder] = useState<string>("none");
-  const [selectedFilter, setSelectedFilter] = useState<string>("none"); // Add this line
+  const [selectedFilter, setSelectedFilter] = useState<string>("none");
   const [borderWidth, setBorderWidth] = useState(10);
   const [borderColor, setBorderColor] = useState("#000000");
-  const [autoSaveTimeout, setAutoSaveTimeout] = useState<NodeJS.Timeout | null>(null);
-  const [isImageLoaded, setIsImageLoaded] = useState(false);
+
+  // Dialog state
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [imageToDelete, setImageToDelete] = useState<number | null>(null);
-  const [currentImages, setCurrentImages] = useState<string[]>(session.images);
-  const [editedImages, setEditedImages] = useState<Set<number>>(new Set());
+  const [autoSaveTimeout, setAutoSaveTimeout] = useState<NodeJS.Timeout | null>(null);
   
   // Watermark states
   const [watermarkText, setWatermarkText] = useState("");
   const [watermarkColor, setWatermarkColor] = useState("#000000");
   const [watermarkSize, setWatermarkSize] = useState(20);
   const [watermarkOpacity, setWatermarkOpacity] = useState(0.5);
+  const [watermarkImageOpacity, setWatermarkImageOpacity] = useState(0.5);
 
-  // Filter options with preview icons
+  // Filter options with React Icons
   const filterOptions = [
-    { value: "none", label: "None", preview: "🔆", color: "#ffffff" },
-    { value: "blackwhite", label: "Black & White", preview: "⚫", color: "#808080" },
-    { value: "sepia", label: "Sepia", preview: "🟤", color: "#8B4513" },
-    { value: "cyberpunk", label: "Cyberpunk", preview: "🟣", color: "#8A2BE2" },
-    { value: "vivid", label: "Vivid", preview: "🌈", color: "#FF6B6B" },
-    { value: "warm", label: "Warm", preview: "🟠", color: "#FFA500" },
-    { value: "cool", label: "Cool", preview: "🔵", color: "#4169E1" },
-    { value: "hdr", label: "HDR", preview: "✨", color: "#FFD700" }
+    { value: "none", label: "None", icon: FaRegCircle, color: "#ffffff" },
+    { value: "blackwhite", label: "Black & White", icon: FaRegSquare, color: "#808080" },
+    { value: "sepia", label: "Sepia", icon: FaEye, color: "#8B4513" },
+    { value: "cyberpunk", label: "Cyberpunk", icon: FaGem, color: "#8A2BE2" },
+    { value: "vivid", label: "Vivid", icon: FaPalette, color: "#FF6B6B" },
+    { value: "warm", label: "Warm", icon: FaSun, color: "#FFA500" },
+    { value: "cool", label: "Cool", icon: FaSnowflake, color: "#4169E1" },
+    { value: "hdr", label: "HDR", icon: FaFire, color: "#FFD700" }
   ];
 
-  // Frame options with preview icons
+  // Frame options with React Icons
   const frameOptions = [
-    { value: "none", label: "None", preview: "⬜" },
-    { value: "classic", label: "Classic", preview: "🟫" },
-    { value: "modern", label: "Modern", preview: "⬛" },
-    { value: "vintage", label: "Vintage", preview: "🟤" },
-    { value: "polaroid", label: "Polaroid", preview: "⬜" },
-    { value: "ornate", label: "Ornate", preview: "🎨" }
+    { value: "none", label: "None", icon: FaRegSquare },
+    { value: "classic", label: "Classic", icon: FaSquare },
+    { value: "modern", label: "Modern", icon: FaDesktop },
+    { value: "vintage", label: "Vintage", icon: FaCamera },
+    { value: "polaroid", label: "Polaroid", icon: FaImage },
+    { value: "ornate", label: "Ornate", icon: FaGem }
   ];
 
-  // Border options with preview icons
+  // Border options with React Icons
   const borderOptions = [
-    { value: "none", label: "None", preview: "⬜" },
-    { value: "solid", label: "Solid", preview: "▬" },
-    { value: "dashed", label: "Dashed", preview: "▭" },
-    { value: "dotted", label: "Dotted", preview: "⋯" },
-    { value: "double", label: "Double", preview: "=" },
-    { value: "rounded", label: "Rounded", preview: "◯" }
+    { value: "none", label: "None", icon: FaRegCircle },
+    { value: "solid", label: "Solid", icon: FaBorderAll },
+    { value: "dashed", label: "Dashed", icon: FaSquare },
+    { value: "dotted", label: "Dotted", icon: Circle },
+    { value: "double", label: "Double", icon: FaDesktop },
+    { value: "rounded", label: "Rounded", icon: FaRegCircle }
   ];
 
-  // Tool categories - Updated to include Filter
+  // Tool categories
   const toolCategories = [
     { id: "crop", label: "Crop", icon: Crop },
     { id: "adjustment", label: "Adjustment", icon: Settings },
@@ -150,6 +189,43 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
 
     loadFabric();
   }, []);
+
+  // Initialize canvas
+  useEffect(() => {
+    if (canvasRef.current && fabricLoaded && fabric) {
+      const canvas = new fabric.Canvas(canvasRef.current, {
+        width: 800,
+        height: 600,
+        backgroundColor: "#ffffff",
+      });
+
+      fabricCanvasRef.current = canvas;
+
+      if (currentImages.length > 0) {
+        loadImageToCanvas(currentImages[selectedImageIndex]);
+      }
+
+      return () => {
+        canvas.dispose();
+        if (autoSaveTimeout) {
+          clearTimeout(autoSaveTimeout);
+        }
+      };
+    }
+  }, [fabricLoaded]);
+
+  // Update currentImages state when session.images changes
+  useEffect(() => {
+    setCurrentImages(session.images);
+    setEditedImages(new Set(session.editedImages || []));
+  }, [session.images, session.editedImages]);
+
+  // Load image when selectedImageIndex changes
+  useEffect(() => {
+    if (fabricCanvasRef.current && currentImages[selectedImageIndex] && fabricLoaded) {
+      loadImageToCanvas(currentImages[selectedImageIndex]);
+    }
+  }, [selectedImageIndex, fabricLoaded, currentImages]);
 
   // Convert image to base64 to avoid CORS issues
   const convertImageToBase64 = (imageUrl: string): Promise<string> => {
@@ -191,35 +267,6 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
       img.src = imageUrl;
     });
   };
-
-  useEffect(() => {
-    if (canvasRef.current && fabricLoaded && fabric) {
-      const canvas = new fabric.Canvas(canvasRef.current, {
-        width: 800,
-        height: 600,
-        backgroundColor: "#ffffff",
-      });
-
-      fabricCanvasRef.current = canvas;
-
-      if (currentImages.length > 0) {
-        loadImageToCanvas(currentImages[selectedImageIndex]);
-      }
-
-      return () => {
-        canvas.dispose();
-        if (autoSaveTimeout) {
-          clearTimeout(autoSaveTimeout);
-        }
-      };
-    }
-  }, [fabricLoaded]);
-
-  useEffect(() => {
-    if (fabricCanvasRef.current && currentImages[selectedImageIndex] && fabricLoaded) {
-      loadImageToCanvas(currentImages[selectedImageIndex]);
-    }
-  }, [selectedImageIndex, fabricLoaded, currentImages]);
 
   const loadImageToCanvas = async (imageUrl: string) => {
     const canvas = fabricCanvasRef.current;
@@ -268,13 +315,73 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
         setSaturation(0);
         setSelectedFrame('none');
         setSelectedBorder('none');
-        setSelectedFilter('none'); // Reset filter when loading new image
+        setSelectedFilter('none');
         setIsCropping(false);
       }, { crossOrigin: 'anonymous' });
       
     } catch (error) {
       console.error('Error loading image:', error);
       setIsImageLoaded(false);
+    }
+  };
+
+  // Updated save functions
+  const saveCurrentImage = () => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas || !isImageLoaded) return;
+
+    try {
+      const dataURL = canvas.toDataURL({
+        format: "png",
+        quality: 1,
+      });
+
+      // Update local currentImages state immediately
+      setCurrentImages(prev => {
+        const newImages = [...prev];
+        newImages[selectedImageIndex] = dataURL;
+        return newImages;
+      });
+
+      // Call the parent's save handler
+      onSave(session.id, selectedImageIndex, dataURL);
+      setShowSaveDialog(true);
+      
+      // Mark this image as edited
+      setEditedImages(prev => new Set(prev).add(selectedImageIndex));
+    } catch (error) {
+      console.error('Save failed:', error);
+      alert('Save failed due to image security restrictions.');
+    }
+  };
+
+  const saveAllImages = () => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas || !isImageLoaded) return;
+
+    try {
+      const dataURL = canvas.toDataURL({
+        format: "png",
+        quality: 1,
+      });
+
+      // Update local currentImages state immediately
+      setCurrentImages(prev => {
+        const newImages = [...prev];
+        newImages[selectedImageIndex] = dataURL;
+        return newImages;
+      });
+
+      // Call the parent's save handler
+      onSave(session.id, selectedImageIndex, dataURL);
+      
+      // Mark this image as edited
+      setEditedImages(prev => new Set(prev).add(selectedImageIndex));
+      
+      alert('Image saved successfully!');
+    } catch (error) {
+      console.error('Save all failed:', error);
+      alert('Save failed due to image security restrictions.');
     }
   };
 
@@ -295,10 +402,7 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
     if (!mainImage) return;
 
     try {
-      // Remove ALL existing filters and start fresh
       const existingFilters = mainImage.filters || [];
-      
-      // Keep only adjustment filters (brightness, contrast, saturation) - remove all artistic filters
       const adjustmentFilters = existingFilters.filter((filter: any) => {
         return (
           (fabric.Image?.filters?.Brightness && filter instanceof fabric.Image.filters.Brightness) ||
@@ -308,7 +412,6 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
       });
 
       if (filterType === 'none') {
-        // Keep only adjustment filters, remove all artistic filters
         mainImage.filters = adjustmentFilters;
         mainImage.applyFilters();
         canvas.renderAll();
@@ -316,7 +419,6 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
         return;
       }
 
-      // Start with adjustment filters and add the new artistic filter
       let newFilters = [...adjustmentFilters];
 
       switch (filterType) {
@@ -333,9 +435,7 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
           break;
           
         case 'cyberpunk':
-          // Cyberpunk effect: High contrast + Purple tint
           if (fabric.Image?.filters?.Contrast) {
-            // Remove existing contrast from adjustments and add cyberpunk contrast
             newFilters = newFilters.filter(f => !(fabric.Image?.filters?.Contrast && f instanceof fabric.Image.filters.Contrast));
             newFilters.push(new fabric.Image.filters.Contrast({ contrast: 0.3 }));
           }
@@ -352,21 +452,17 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
           break;
           
         case 'vivid':
-          // Vivid effect: Increased saturation and slight contrast
           if (fabric.Image?.filters?.Saturation) {
-            // Remove existing saturation from adjustments and add vivid saturation
             newFilters = newFilters.filter(f => !(fabric.Image?.filters?.Saturation && f instanceof fabric.Image.filters.Saturation));
             newFilters.push(new fabric.Image.filters.Saturation({ saturation: 0.4 }));
           }
           if (fabric.Image?.filters?.Contrast) {
-            // Remove existing contrast from adjustments and add vivid contrast
             newFilters = newFilters.filter(f => !(fabric.Image?.filters?.Contrast && f instanceof fabric.Image.filters.Contrast));
             newFilters.push(new fabric.Image.filters.Contrast({ contrast: 0.2 }));
           }
           break;
           
         case 'warm':
-          // Warm effect: Orange/yellow tint
           if (fabric.Image?.filters?.ColorMatrix) {
             newFilters.push(new fabric.Image.filters.ColorMatrix({
               matrix: [
@@ -380,7 +476,6 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
           break;
           
         case 'cool':
-          // Cool effect: Blue tint
           if (fabric.Image?.filters?.ColorMatrix) {
             newFilters.push(new fabric.Image.filters.ColorMatrix({
               matrix: [
@@ -394,26 +489,22 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
           break;
           
         case 'hdr':
-          // HDR effect: Enhanced contrast and gamma
           if (fabric.Image?.filters?.Gamma) {
             newFilters.push(new fabric.Image.filters.Gamma({ 
               gamma: [1, 0.8, 0.8] 
             }));
           }
           if (fabric.Image?.filters?.Contrast) {
-            // Remove existing contrast from adjustments and add HDR contrast
             newFilters = newFilters.filter(f => !(fabric.Image?.filters?.Contrast && f instanceof fabric.Image.filters.Contrast));
             newFilters.push(new fabric.Image.filters.Contrast({ contrast: 0.25 }));
           }
           if (fabric.Image?.filters?.Brightness) {
-            // Remove existing brightness from adjustments and add HDR brightness
             newFilters = newFilters.filter(f => !(fabric.Image?.filters?.Brightness && f instanceof fabric.Image.filters.Brightness));
             newFilters.push(new fabric.Image.filters.Brightness({ brightness: 0.1 }));
           }
           break;
       }
 
-      // Apply the new filter set
       mainImage.filters = newFilters;
       mainImage.applyFilters();
       canvas.renderAll();
@@ -424,9 +515,7 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
       }
     } catch (error) {
       console.error('Error applying filter:', error);
-      // Fallback to simpler filters if advanced filters are not available
       if (filterType === 'blackwhite') {
-        // Simple grayscale fallback
         mainImage.filters = [new fabric.Image.filters.Grayscale()];
         mainImage.applyFilters();
         canvas.renderAll();
@@ -559,7 +648,34 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
     }
   };
 
-  // Adjustment functions
+  // Adjustment functions with increment/decrement
+  const adjustBrightness = (increment: boolean) => {
+    const newValue = increment ? Math.min(brightness + 5, 100) : Math.max(brightness - 5, -100);
+    setBrightness(newValue);
+    applyImageFilter('brightness', newValue / 100);
+    if (newValue !== 0) {
+      setEditedImages(prev => new Set(prev).add(selectedImageIndex));
+    }
+  };
+
+  const adjustContrast = (increment: boolean) => {
+    const newValue = increment ? Math.min(contrast + 5, 100) : Math.max(contrast - 5, -100);
+    setContrast(newValue);
+    applyImageFilter('contrast', newValue / 100);
+    if (newValue !== 0) {
+      setEditedImages(prev => new Set(prev).add(selectedImageIndex));
+    }
+  };
+
+  const adjustSaturation = (increment: boolean) => {
+    const newValue = increment ? Math.min(saturation + 5, 100) : Math.max(saturation - 5, -100);
+    setSaturation(newValue);
+    applyImageFilter('saturation', newValue / 100);
+    if (newValue !== 0) {
+      setEditedImages(prev => new Set(prev).add(selectedImageIndex));
+    }
+  };
+
   const applyBrightness = (value: number) => {
     setBrightness(value);
     applyImageFilter('brightness', value / 100);
@@ -592,8 +708,6 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
     if (!mainImage) return;
 
     const existingFilters = mainImage.filters || [];
-    
-    // Remove the specific adjustment filter being updated
     const otherFilters = existingFilters.filter((filter: any) => {
       return !(
         (filterType === 'brightness' && fabric.Image?.filters?.Brightness && filter instanceof fabric.Image.filters.Brightness) ||
@@ -621,7 +735,6 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
         break;
     }
 
-    // Add the new filter if it exists, otherwise just use the other filters
     mainImage.filters = newFilter ? [...otherFilters, newFilter] : otherFilters;
     mainImage.applyFilters();
     canvas.renderAll();
@@ -632,11 +745,12 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
     }
   };
 
-  // Frame functions
+  // Frame functions (improved centering)
   const applyFrame = (frameType: string) => {
     const canvas = fabricCanvasRef.current;
     if (!canvas || !fabric || !isImageLoaded) return;
 
+    // Remove existing frame
     const existingFrame = canvas.getObjects().find((obj: any) => obj.id === 'frame');
     if (existingFrame) {
       canvas.remove(existingFrame);
@@ -651,105 +765,104 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
     const mainImage = canvas.getObjects().find((obj: any) => obj.id === 'mainImage');
     if (!mainImage) return;
 
-    let frame;
-    const frameSize = 20;
-    const imageBounds = mainImage.getBoundingRect();
-
+    // Get the exact bounds of the main image
+    const imageBounds = mainImage.getBoundingRect(true);
+    const frameWidth = 20;
+    
+    let frameRect;
+    
     switch (frameType) {
       case 'classic':
-        frame = new fabric.Rect({
-          left: imageBounds.left - frameSize,
-          top: imageBounds.top - frameSize,
-          width: imageBounds.width + frameSize * 2,
-          height: imageBounds.height + frameSize * 2,
+        frameRect = new fabric.Rect({
+          left: imageBounds.left - frameWidth,
+          top: imageBounds.top - frameWidth,
+          width: imageBounds.width + (frameWidth * 2),
+          height: imageBounds.height + (frameWidth * 2),
           fill: '#8B4513',
           stroke: '#654321',
           strokeWidth: 2,
           selectable: false,
+          evented: false,
           id: 'frame'
         });
         break;
       case 'modern':
-        frame = new fabric.Rect({
-          left: imageBounds.left - frameSize/2,
-          top: imageBounds.top - frameSize/2,
-          width: imageBounds.width + frameSize,
-          height: imageBounds.height + frameSize,
-          fill: 'transparent',
-          stroke: '#333333',
-          strokeWidth: frameSize,
+        frameRect = new fabric.Rect({
+          left: imageBounds.left - frameWidth,
+          top: imageBounds.top - frameWidth,
+          width: imageBounds.width + (frameWidth * 2),
+          height: imageBounds.height + (frameWidth * 2),
+          fill: '#2c3e50',
+          stroke: '#34495e',
+          strokeWidth: 1,
           selectable: false,
+          evented: false,
           id: 'frame'
         });
         break;
       case 'vintage':
-        frame = new fabric.Rect({
-          left: imageBounds.left - frameSize,
-          top: imageBounds.top - frameSize,
-          width: imageBounds.width + frameSize * 2,
-          height: imageBounds.height + frameSize * 2,
-          fill: '#D2691E',
-          stroke: '#A0522D',
+        frameRect = new fabric.Rect({
+          left: imageBounds.left - frameWidth,
+          top: imageBounds.top - frameWidth,
+          width: imageBounds.width + (frameWidth * 2),
+          height: imageBounds.height + (frameWidth * 2),
+          fill: '#d4af37',
+          stroke: '#b8860b',
           strokeWidth: 3,
           selectable: false,
-          id: 'frame',
-          shadow: new fabric.Shadow({
-            color: 'rgba(0,0,0,0.3)',
-            blur: 10,
-            offsetX: 5,
-            offsetY: 5
-          })
+          evented: false,
+          id: 'frame'
         });
         break;
       case 'polaroid':
-        frame = new fabric.Rect({
-          left: imageBounds.left - frameSize,
-          top: imageBounds.top - frameSize,
-          width: imageBounds.width + frameSize * 2,
-          height: imageBounds.height + frameSize * 3,
-          fill: '#FFFFFF',
-          stroke: '#E5E5E5',
+        frameRect = new fabric.Rect({
+          left: imageBounds.left - frameWidth,
+          top: imageBounds.top - frameWidth,
+          width: imageBounds.width + (frameWidth * 2),
+          height: imageBounds.height + (frameWidth * 3), // Extra space at bottom
+          fill: '#ffffff',
+          stroke: '#cccccc',
           strokeWidth: 1,
           selectable: false,
+          evented: false,
           id: 'frame'
         });
         break;
       case 'ornate':
-        frame = new fabric.Rect({
-          left: imageBounds.left - frameSize,
-          top: imageBounds.top - frameSize,
-          width: imageBounds.width + frameSize * 2,
-          height: imageBounds.height + frameSize * 2,
-          fill: '#FFD700',
-          stroke: '#B8860B',
+        frameRect = new fabric.Rect({
+          left: imageBounds.left - frameWidth,
+          top: imageBounds.top - frameWidth,
+          width: imageBounds.width + (frameWidth * 2),
+          height: imageBounds.height + (frameWidth * 2),
+          fill: '#ffd700',
+          stroke: '#ff8c00',
           strokeWidth: 4,
           selectable: false,
-          id: 'frame',
-          shadow: new fabric.Shadow({
-            color: 'rgba(0,0,0,0.4)',
-            blur: 15,
-            offsetX: 3,
-            offsetY: 3
-          })
+          evented: false,
+          id: 'frame'
         });
         break;
     }
 
-    if (frame) {
-      canvas.add(frame);
-      canvas.sendToBack(frame);
+    if (frameRect) {
+      canvas.add(frameRect);
+      canvas.sendToBack(frameRect);
+      canvas.bringForward(mainImage);
       canvas.renderAll();
       setSelectedFrame(frameType);
-      
       setEditedImages(prev => new Set(prev).add(selectedImageIndex));
     }
   };
 
-  // Border functions
+  // Border functions (improved centering)
   const applyBorder = (borderType: string) => {
     const canvas = fabricCanvasRef.current;
     if (!canvas || !fabric || !isImageLoaded) return;
 
+    const mainImage = canvas.getObjects().find((obj: any) => obj.id === 'mainImage');
+    if (!mainImage) return;
+
+    // Remove existing border
     const existingBorder = canvas.getObjects().find((obj: any) => obj.id === 'border');
     if (existingBorder) {
       canvas.remove(existingBorder);
@@ -761,60 +874,78 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
       return;
     }
 
-    const mainImage = canvas.getObjects().find((obj: any) => obj.id === 'mainImage');
-    if (!mainImage) return;
-
-    const imageBounds = mainImage.getBoundingRect();
-    let strokeDashArray: number[] = [];
+    // Get the exact bounds of the main image
+    const imageBounds = mainImage.getBoundingRect(true);
+    
+    let borderRect;
+    let strokeDashArray: number[] | undefined;
 
     switch (borderType) {
       case 'solid':
-        strokeDashArray = [];
+        strokeDashArray = undefined;
         break;
       case 'dashed':
-        strokeDashArray = [15, 15];
+        strokeDashArray = [10, 5];
         break;
       case 'dotted':
-        strokeDashArray = [3, 6];
+        strokeDashArray = [2, 3];
         break;
       case 'double':
-        strokeDashArray = [];
+        strokeDashArray = undefined;
         break;
       case 'rounded':
-        strokeDashArray = [];
+        strokeDashArray = undefined;
         break;
     }
 
-    const border = new fabric.Rect({
-      left: imageBounds.left - borderWidth/2,
-      top: imageBounds.top - borderWidth/2,
-      width: imageBounds.width + borderWidth,
-      height: imageBounds.height + borderWidth,
+    borderRect = new fabric.Rect({
+      left: imageBounds.left,
+      top: imageBounds.top,
+      width: imageBounds.width,
+      height: imageBounds.height,
       fill: 'transparent',
       stroke: borderColor,
       strokeWidth: borderWidth,
       strokeDashArray: strokeDashArray,
-      rx: borderType === 'rounded' ? 20 : 0,
-      ry: borderType === 'rounded' ? 20 : 0,
+      rx: borderType === 'rounded' ? 10 : 0,
+      ry: borderType === 'rounded' ? 10 : 0,
       selectable: false,
+      evented: false,
       id: 'border'
     });
 
-    canvas.add(border);
+    if (borderType === 'double') {
+      // Create inner border for double effect
+      const innerBorder = new fabric.Rect({
+        left: imageBounds.left + borderWidth,
+        top: imageBounds.top + borderWidth,
+        width: imageBounds.width - (borderWidth * 2),
+        height: imageBounds.height - (borderWidth * 2),
+        fill: 'transparent',
+        stroke: borderColor,
+        strokeWidth: Math.max(1, borderWidth / 3),
+        selectable: false,
+        evented: false,
+        id: 'innerBorder'
+      });
+      canvas.add(innerBorder);
+    }
+
+    canvas.add(borderRect);
     canvas.renderAll();
     setSelectedBorder(borderType);
-    
     setEditedImages(prev => new Set(prev).add(selectedImageIndex));
   };
 
   // Watermark functions
   const addTextWatermark = () => {
     const canvas = fabricCanvasRef.current;
-    if (!canvas || !fabric || !isImageLoaded || !watermarkText.trim()) return;
+    if (!canvas || !fabric || watermarkText.trim() === "" || !isImageLoaded) return;
 
-    const existingWatermark = canvas.getObjects().find((obj: any) => obj.id === 'watermark');
-    if (existingWatermark) {
-      canvas.remove(existingWatermark);
+    // Remove existing text watermark if any
+    const existingTextWatermark = canvas.getObjects().find((obj: any) => obj.id === 'textWatermark');
+    if (existingTextWatermark) {
+      canvas.remove(existingTextWatermark);
     }
 
     const textWatermark = new fabric.Text(watermarkText, {
@@ -824,62 +955,65 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
       fontSize: watermarkSize,
       fill: watermarkColor,
       opacity: watermarkOpacity,
-      originX: 'center',
-      originY: 'center',
       selectable: true,
-      id: 'watermark'
+      evented: true,
+      id: 'textWatermark'
     });
 
     canvas.add(textWatermark);
+    canvas.setActiveObject(textWatermark);
     canvas.renderAll();
     
     setEditedImages(prev => new Set(prev).add(selectedImageIndex));
   };
 
-  const addImageWatermark = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+  const addImageWatermark = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (!file || !fabric || !isImageLoaded) return;
 
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+
     const reader = new FileReader();
-    reader.onload = (e) => {
-      const imageUrl = e.target?.result as string;
+    reader.onload = (event) => {
+      const imgSrc = event.target?.result as string;
       
-      fabric.Image.fromURL(imageUrl, (img: any) => {
-        const canvas = fabricCanvasRef.current;
-        if (!canvas) return;
-
-        const existingWatermark = canvas.getObjects().find((obj: any) => obj.id === 'watermark');
-        if (existingWatermark) {
-          canvas.remove(existingWatermark);
-        }
-
-        img.scale(0.2);
+      fabric.Image.fromURL(imgSrc, (img: any) => {
+        // Set fixed initial size (small)
+        const fixedSize = 100;
+        const scale = fixedSize / Math.max(img.width!, img.height!);
+        
+        img.scale(scale);
         img.set({
-          left: canvas.getWidth() - 100,
-          top: canvas.getHeight() - 100,
-          opacity: watermarkOpacity,
+          left: canvas.getWidth() / 2,
+          top: canvas.getHeight() / 2,
+          opacity: watermarkImageOpacity,
           selectable: true,
-          id: 'watermark'
+          evented: true,
+          id: 'imageWatermark'
         });
 
         canvas.add(img);
+        canvas.setActiveObject(img);
         canvas.renderAll();
         
         setEditedImages(prev => new Set(prev).add(selectedImageIndex));
       });
     };
-    
     reader.readAsDataURL(file);
-    event.target.value = "";
+    
+    // Reset input
+    e.target.value = '';
   };
 
+  // Reset function
   const resetImage = () => {
     setBrightness(0);
     setContrast(0);
     setSaturation(0);
     setSelectedFrame('none');
     setSelectedBorder('none');
-    setSelectedFilter('none'); // Add filter reset
+    setSelectedFilter('none');
     setIsCropping(false);
     
     if (currentImages[selectedImageIndex]) {
@@ -893,75 +1027,37 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
     });
   };
 
-  const saveCurrentImage = () => {
-    const canvas = fabricCanvasRef.current;
-    if (!canvas || !isImageLoaded) return;
-
-    try {
-      const dataURL = canvas.toDataURL({
-        format: "png",
-        quality: 1,
-      });
-
-      onSave(session.id, selectedImageIndex, dataURL);
-      setShowSaveDialog(true);
-      
-      setEditedImages(prev => new Set(prev).add(selectedImageIndex));
-    } catch (error) {
-      console.error('Save failed:', error);
-      alert('Save failed due to image security restrictions.');
-    }
-  };
-
-  const saveAllImages = () => {
-    const canvas = fabricCanvasRef.current;
-    if (!canvas || !isImageLoaded) return;
-
-    try {
-      const dataURL = canvas.toDataURL({
-        format: "png",
-        quality: 1,
-      });
-
-      onSave(session.id, selectedImageIndex, dataURL);
-      alert('All changes saved successfully!');
-    } catch (error) {
-      console.error('Save all failed:', error);
-      alert('Save failed due to image security restrictions.');
-    }
-  };
-
   const confirmDeleteImage = () => {
     if (imageToDelete !== null && onDeleteImage) {
-      const newImages = currentImages.filter((_, index) => index !== imageToDelete);
-      setCurrentImages(newImages);
-      
-      const newEditedImages = new Set<number>();
-      editedImages.forEach(index => {
-        if (index < imageToDelete) {
-          newEditedImages.add(index);
-        } else if (index > imageToDelete) {
-          newEditedImages.add(index - 1);
-        }
-      });
-      setEditedImages(newEditedImages);
-      
-      if (selectedImageIndex >= newImages.length) {
-        setSelectedImageIndex(Math.max(0, newImages.length - 1));
-      } else if (selectedImageIndex >= imageToDelete) {
-        setSelectedImageIndex(Math.max(0, selectedImageIndex - 1));
-      }
-      
       onDeleteImage(session.id, imageToDelete);
       setShowDeleteDialog(false);
       setImageToDelete(null);
-      
-      if (newImages.length > 0) {
-        const newIndex = selectedImageIndex >= newImages.length ? newImages.length - 1 : selectedImageIndex;
-        setTimeout(() => loadImageToCanvas(newImages[newIndex]), 100);
-      }
     }
   };
+
+  const handleDeleteImageClick = (index: number) => {
+    setImageToDelete(index);
+    setShowDeleteDialog(true);
+  };
+
+  // Auto-save functionality
+  useEffect(() => {
+    if (autoSaveTimeout) {
+      clearTimeout(autoSaveTimeout);
+    }
+
+    const timeout = setTimeout(() => {
+      // Optional: Implement auto-save logic here
+    }, 5000); // 5 seconds
+
+    setAutoSaveTimeout(timeout);
+
+    return () => {
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+    };
+  }, [brightness, contrast, saturation, selectedFilter, selectedFrame, selectedBorder]);
 
   if (!fabricLoaded) {
     return (
@@ -984,7 +1080,7 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
           <h2 className="text-xl font-bold">Photo Editor - {session.customerDetails.name}</h2>
           <div className="flex items-center gap-2">
             <Button 
-              onClick={saveAllImages} // Fix: Add the actual function
+              onClick={saveAllImages}
               className="bg-green-600 hover:bg-green-700"
               disabled={!isImageLoaded}
             >
@@ -1021,38 +1117,6 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
                   {/* Tool Content */}
                   {activeTool === category.id && (
                     <div className="p-4 bg-white dark:bg-slate-800 border-t">
-                      {/* Filter Tools */}
-                      {category.id === 'filter' && (
-                        <div className="space-y-3">
-                          <div className="grid grid-cols-2 gap-2">
-                            {filterOptions.map((filter) => (
-                              <Button
-                                key={filter.value}
-                                variant={selectedFilter === filter.value ? "default" : "outline"}
-                                className="h-16 flex flex-col items-center justify-center p-2 text-xs"
-                                onClick={() => applyFilter(filter.value)}
-                                disabled={!isImageLoaded}
-                                style={{
-                                  borderColor: selectedFilter === filter.value ? filter.color : undefined
-                                }}
-                              >
-                                <span className="text-lg mb-1">{filter.preview}</span>
-                                <span className="text-[10px] leading-tight text-center">{filter.label}</span>
-                              </Button>
-                            ))}
-                          </div>
-                          
-                          {selectedFilter !== 'none' && (
-                            <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                              <p className="text-xs text-blue-700 dark:text-blue-300">
-                                <Filter className="h-3 w-3 inline mr-1" />
-                                Filter "{filterOptions.find(f => f.value === selectedFilter)?.label}" applied
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
                       {/* Crop Tools */}
                       {category.id === 'crop' && (
                         <div className="space-y-3">
@@ -1084,7 +1148,7 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
                               disabled={!isImageLoaded}
                             >
                               <RotateCcw className="h-4 w-4 mr-2" />
-                              Rotate Left
+                              Left
                             </Button>
                             <Button 
                               onClick={() => rotateImage('right')} 
@@ -1093,7 +1157,7 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
                               disabled={!isImageLoaded}
                             >
                               <RotateCw className="h-4 w-4 mr-2" />
-                              Rotate Right
+                              Right
                             </Button>
                           </div>
                         </div>
@@ -1117,6 +1181,26 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
                               className="w-full"
                               disabled={!isImageLoaded}
                             />
+                            <div className="flex gap-2 mt-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => adjustBrightness(false)}
+                                disabled={!isImageLoaded || brightness <= -100}
+                                className="flex-1"
+                              >
+                                <Minus className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => adjustBrightness(true)}
+                                disabled={!isImageLoaded || brightness >= 100}
+                                className="flex-1"
+                              >
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                            </div>
                           </div>
 
                           {/* Contrast */}
@@ -1134,6 +1218,26 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
                               className="w-full"
                               disabled={!isImageLoaded}
                             />
+                            <div className="flex gap-2 mt-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => adjustContrast(false)}
+                                disabled={!isImageLoaded || contrast <= -100}
+                                className="flex-1"
+                              >
+                                <Minus className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => adjustContrast(true)}
+                                disabled={!isImageLoaded || contrast >= 100}
+                                className="flex-1"
+                              >
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                            </div>
                           </div>
 
                           {/* Saturation */}
@@ -1151,25 +1255,83 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
                               className="w-full"
                               disabled={!isImageLoaded}
                             />
+                            <div className="flex gap-2 mt-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => adjustSaturation(false)}
+                                disabled={!isImageLoaded || saturation <= -100}
+                                className="flex-1"
+                              >
+                                <Minus className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => adjustSaturation(true)}
+                                disabled={!isImageLoaded || saturation >= 100}
+                                className="flex-1"
+                              >
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                            </div>
                           </div>
+                        </div>
+                      )}
+
+                      {/* Filter Tools */}
+                      {category.id === 'filter' && (
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-2 gap-2">
+                            {filterOptions.map((filter) => {
+                              const IconComponent = filter.icon;
+                              return (
+                                <Button
+                                  key={filter.value}
+                                  variant={selectedFilter === filter.value ? "default" : "outline"}
+                                  className="h-16 flex flex-col items-center justify-center p-2 text-xs"
+                                  onClick={() => applyFilter(filter.value)}
+                                  disabled={!isImageLoaded}
+                                  style={{
+                                    borderColor: selectedFilter === filter.value ? filter.color : undefined
+                                  }}
+                                >
+                                  <IconComponent className="text-lg mb-1" style={{ color: filter.color }} />
+                                  <span className="text-[10px] leading-tight text-center">{filter.label}</span>
+                                </Button>
+                              );
+                            })}
+                          </div>
+                          
+                          {selectedFilter !== 'none' && (
+                            <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                              <p className="text-xs text-blue-700 dark:text-blue-300">
+                                <Filter className="h-3 w-3 inline mr-1" />
+                                Filter "{filterOptions.find(f => f.value === selectedFilter)?.label}" applied
+                              </p>
+                            </div>
+                          )}
                         </div>
                       )}
 
                       {/* Frame Tools */}
                       {category.id === 'frame' && (
                         <div className="grid grid-cols-3 gap-2">
-                          {frameOptions.map((frame) => (
-                            <Button
-                              key={frame.value}
-                              variant={selectedFrame === frame.value ? "default" : "outline"}
-                              className="h-16 flex flex-col items-center justify-center p-2"
-                              onClick={() => applyFrame(frame.value)}
-                              disabled={!isImageLoaded}
-                            >
-                              <span className="text-2xl mb-1">{frame.preview}</span>
-                              <span className="text-xs">{frame.label}</span>
-                            </Button>
-                          ))}
+                          {frameOptions.map((frame) => {
+                            const IconComponent = frame.icon;
+                            return (
+                              <Button
+                                key={frame.value}
+                                variant={selectedFrame === frame.value ? "default" : "outline"}
+                                className="h-16 flex flex-col items-center justify-center p-2"
+                                onClick={() => applyFrame(frame.value)}
+                                disabled={!isImageLoaded}
+                              >
+                                <IconComponent className="text-2xl mb-1" />
+                                <span className="text-xs">{frame.label}</span>
+                              </Button>
+                            );
+                          })}
                         </div>
                       )}
 
@@ -1177,18 +1339,21 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
                       {category.id === 'border' && (
                         <div className="space-y-3">
                           <div className="grid grid-cols-3 gap-2">
-                            {borderOptions.map((border) => (
-                              <Button
-                                key={border.value}
-                                variant={selectedBorder === border.value ? "default" : "outline"}
-                                className="h-16 flex flex-col items-center justify-center p-2"
-                                onClick={() => applyBorder(border.value)}
-                                disabled={!isImageLoaded}
-                              >
-                                <span className="text-2xl mb-1">{border.preview}</span>
-                                <span className="text-xs">{border.label}</span>
-                              </Button>
-                            ))}
+                            {borderOptions.map((border) => {
+                              const IconComponent = border.icon;
+                              return (
+                                <Button
+                                  key={border.value}
+                                  variant={selectedBorder === border.value ? "default" : "outline"}
+                                  className="h-16 flex flex-col items-center justify-center p-2"
+                                  onClick={() => applyBorder(border.value)}
+                                  disabled={!isImageLoaded}
+                                >
+                                  <IconComponent className="text-2xl mb-1" />
+                                  <span className="text-xs">{border.label}</span>
+                                </Button>
+                              );
+                            })}
                           </div>
                           
                           {selectedBorder !== 'none' && (
@@ -1296,6 +1461,19 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
                               <ImageIcon className="h-4 w-4 mr-2" />
                               Image Watermark
                             </h4>
+                            <div>
+                              <label className="text-xs">Opacity: {Math.round(watermarkImageOpacity * 100)}%</label>
+                              <Input
+                                type="range"
+                                min="0.1"
+                                max="1"
+                                step="0.1"
+                                value={watermarkImageOpacity}
+                                onChange={(e) => setWatermarkImageOpacity(Number(e.target.value))}
+                                disabled={!isImageLoaded}
+                                className="w-full mt-1"
+                              />
+                            </div>
                             <Button
                               onClick={() => watermarkInputRef.current?.click()}
                               variant="outline"
@@ -1338,7 +1516,7 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
             {/* Save Changes and Reset Buttons below canvas */}
             <div className="mt-4 flex gap-3">
               <Button 
-                onClick={saveCurrentImage} // Fix: Add the actual function
+                onClick={saveCurrentImage}
                 className="bg-green-600 hover:bg-green-700 px-8 py-2"
                 disabled={!isImageLoaded}
               >
@@ -1386,20 +1564,6 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
                       Edited
                     </div>
                   )}
-                  
-                  {/* Delete button */}
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    className="absolute top-1 right-1 h-6 w-6 p-0 opacity-80 hover:opacity-100"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setImageToDelete(index);
-                      setShowDeleteDialog(true);
-                    }}
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
                   
                   {selectedImageIndex === index && (
                     <div className="absolute inset-0 bg-blue-500 bg-opacity-20 flex items-center justify-center">
