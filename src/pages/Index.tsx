@@ -23,6 +23,11 @@ const Index = () => {
     localStorage.removeItem("currentUser");
   };
 
+  // Always clear currentUser in development for a fresh login experience
+  if (import.meta.env.DEV) {
+    localStorage.removeItem("currentUser");
+  }
+
   if (currentUser?.role === "photographer") {
     return <PhotographerDashboard username={currentUser.username} />;
   }
