@@ -63,7 +63,7 @@ interface Session {
     location: string;
     date: string;
   };
-  status: "pending" | "ordered" | "ready" | "completed";
+  status: "pending" | "ready" | "completed";
   printCount?: number;
   editedImages?: number[];
   originalImages?: string[];

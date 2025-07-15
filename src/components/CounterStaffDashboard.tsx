@@ -28,10 +28,8 @@ interface Session {
     location: string;
     date: string;
   };
-  status: "pending" | "ordered" | "ready" | "completed";
+  status: "pending" | "ready" | "completed";
   printCount?: number;
-  editedImages?: number[];
-  originalImages?: string[];
 }
 
 const mockSessions: Session[] = [
@@ -74,7 +72,7 @@ const mockSessions: Session[] = [
     name: "Graduation Photoshoot",
     date: "2024-07-10",
     type: "Graduation",
-    status: "ordered",
+    status: "ready",
     printCount: 3,
     images: [
       "https://images.unsplash.com/photo-1472396961693-142e6e269027?w=800&h=600&fit=crop",
@@ -139,7 +137,7 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
       const orderedIds = JSON.parse(stored);
       setSessions(prev => prev.map(session =>
         orderedIds.includes(session.id)
-          ? { ...session, status: "ordered" }
+          ? { ...session, status: "ready" }
           : session
       ));
     }
@@ -147,7 +145,7 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
 
   useEffect(() => {
     // Keep localStorage in sync if sessions change
-    const orderedIds = sessions.filter(s => s.status === "ordered").map(s => s.id);
+    const orderedIds = sessions.filter(s => s.status === "ready").map(s => s.id);
     localStorage.setItem("orderedSessions", JSON.stringify(orderedIds));
   }, [sessions]);
 
@@ -232,7 +230,8 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
   const getStatusColor = (status: string) => {
     const colors = {
       "pending": "bg-yellow-100 text-yellow-800 border-yellow-200",
-      "ordered": "bg-blue-100 text-blue-800 border-blue-200"
+      "ready": "bg-blue-100 text-blue-800 border-blue-200",
+      "completed": "bg-green-100 text-green-800 border-green-200"
     };
     return colors[status as keyof typeof colors] || "bg-gray-100 text-gray-800 border-gray-200";
   };
@@ -418,7 +417,8 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
             >
               <option value="">All Status</option>
               <option value="pending">Pending</option>
-              <option value="ordered">Ordered</option>
+              <option value="ready">Ready</option>
+              <option value="completed">Completed</option>
             </select>
             <span className="pointer-events-none absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">
               <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><path d="M6 8l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -607,6 +607,7 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
                           : "border-gray-200 bg-white shadow"
                       }`}
                       onClick={() => setCurrentImageIndex(index)}
+                      // Now clicking a thumbnail will update the main image
                     >
                       {/* Static tick box for selection */}
                       <input

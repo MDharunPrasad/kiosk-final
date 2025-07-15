@@ -36,18 +36,7 @@ export default function Cart() {
     orderedSessions = Array.from(new Set([...orderedSessions, ...sessionIds]));
     localStorage.setItem("orderedSessions", JSON.stringify(orderedSessions));
     clearCart();
-    // Ensure operator is set as current user for dashboard, with username fallback
-    const currentUser = localStorage.getItem("currentUser");
-    let username = "Operator";
-    if (currentUser) {
-      try {
-        const parsed = JSON.parse(currentUser);
-        if (parsed.role === "operator" && parsed.username) {
-          username = parsed.username;
-        }
-      } catch {}
-    }
-    localStorage.setItem("currentUser", JSON.stringify({ role: "operator", username }));
+    localStorage.setItem("currentUser", JSON.stringify({ role: "operator" }));
     navigate("/");
   };
 
@@ -65,27 +54,6 @@ export default function Cart() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 py-10 px-2">
-      {/* Back Button */}
-      <button
-        className="absolute left-8 top-8 bg-white border border-gray-200 shadow px-4 py-2 rounded-lg text-gray-700 font-medium hover:bg-gray-100 transition-all z-20"
-        onClick={() => {
-          // Ensure operator is set as current user for dashboard, with username fallback
-          const currentUser = localStorage.getItem("currentUser");
-          let username = "Operator";
-          if (currentUser) {
-            try {
-              const parsed = JSON.parse(currentUser);
-              if (parsed.role === "operator" && parsed.username) {
-                username = parsed.username;
-              }
-            } catch {}
-          }
-          localStorage.setItem("currentUser", JSON.stringify({ role: "operator", username }));
-          navigate("/");
-        }}
-      >
-        &larr; Back
-      </button>
       <div className="w-full max-w-5xl bg-white rounded-2xl shadow-2xl p-8 md:p-12 flex flex-col md:flex-row gap-10 md:gap-12 border border-gray-100">
         {/* Left: Cart Items */}
         <div className="flex-1 min-w-0 flex flex-col">
@@ -93,22 +61,13 @@ export default function Cart() {
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-8">
             <div>
               <h1 className="text-3xl font-extrabold mb-1 tracking-tight text-gray-900">Photo Cart Invoice</h1>
-              {/* Order number and date removed as per request */}
+              <div className="text-sm text-gray-500 font-medium">Order #{orderNumber} &middot; {formatDate(orderDate)}</div>
             </div>
           </div>
           <h2 className="font-semibold text-lg mb-4 text-gray-800">Your Edited Photos</h2>
           <div className="flex flex-col gap-6">
             {cartItems.map((item) => (
-              <div key={item.id} className="relative flex flex-col sm:flex-row items-center gap-6 bg-gray-50 rounded-xl shadow-sm p-4 md:p-6">
-                {/* Floating Delete Button */}
-                <button
-                  className="absolute top-3 right-3 bg-white border border-gray-200 rounded-full p-1 shadow hover:bg-red-100 text-red-500 hover:text-red-700 transition-colors z-10"
-                  title="Remove"
-                  onClick={() => setDeleteId(item.id)}
-                  style={{ lineHeight: 0 }}
-                >
-                  <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-                </button>
+              <div key={item.id} className="flex flex-col sm:flex-row items-center gap-6 bg-gray-50 rounded-xl shadow-sm p-4 md:p-6">
                 <img src={item.thumb} alt={item.name} className="w-24 h-24 object-cover rounded-lg border shadow" />
                 <div className="flex-1 min-w-0 w-full">
                   <div className="font-semibold text-base text-gray-900 truncate mb-1">{item.name}</div>
@@ -154,7 +113,9 @@ export default function Cart() {
                 </div>
                 <div className="flex flex-col items-end gap-2 min-w-[80px]">
                   <div className="font-bold text-lg text-right text-gray-900">${getItemPrice(item).toFixed(2)}</div>
-                  {/* Old delete button removed */}
+                  <button className="text-red-500 hover:text-red-700 transition-colors" title="Remove" onClick={() => setDeleteId(item.id)}>
+                    <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                  </button>
                 </div>
               </div>
             ))}
@@ -170,7 +131,8 @@ export default function Cart() {
             <div className="border-t my-2"></div>
             <div className="flex justify-between font-bold text-2xl text-gray-900"><span>Total</span><span>${total.toFixed(2)}</span></div>
             <button className="mt-4 w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-3 rounded-xl text-lg shadow-lg transition-all duration-150 active:scale-95" onClick={handlePlaceOrder}>Place Order</button>
-            {/* Estimated delivery and invoice generated lines removed as per request */}
+            <div className="text-xs text-gray-500 text-center mt-2">Estimated delivery: 5-7 business days</div>
+            <div className="text-xs text-gray-400 text-center mt-1">Invoice generated by PhotoKiosk Pro</div>
           </div>
         </div>
       </div>
