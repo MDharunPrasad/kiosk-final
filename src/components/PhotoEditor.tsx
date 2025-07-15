@@ -154,7 +154,7 @@ export function PhotoEditor({
     { value: "solid", label: "Solid", icon: FaBorderAll },
     { value: "dashed", label: "Dashed", icon: FaSquare },
     { value: "dotted", label: "Dotted", icon: Circle },
-    { value: "double", label: "Double", icon: FaDesktop },
+    // { value: "double", label: "Double", icon: FaDesktop },
     { value: "rounded", label: "Rounded", icon: FaRegCircle }
   ];
 
