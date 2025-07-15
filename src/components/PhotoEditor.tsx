@@ -169,6 +169,47 @@ export function PhotoEditor({
     { id: "watermark", label: "Watermark", icon: Type }
   ];
 
+  // Store per-image canvas state
+  const [canvasStates, setCanvasStates] = useState<{ [index: number]: any }>({});
+
+  // Undo/Redo stacks
+  const [undoStack, setUndoStack] = useState<any[]>([]);
+  const [redoStack, setRedoStack] = useState<any[]>([]);
+
+  // Track previous image index for auto-save
+  const prevImageIndexRef = useRef(selectedImageIndex);
+
+  // Auto-save canvas state before switching images, and auto-restore on switch
+  useEffect(() => {
+    const prevIndex = prevImageIndexRef.current;
+    if (fabricCanvasRef.current && prevIndex !== selectedImageIndex) {
+      // Save current canvas state for previous image (after all edits)
+      setCanvasStates(prev => ({ ...prev, [prevIndex]: fabricCanvasRef.current!.toJSON() }));
+    }
+    prevImageIndexRef.current = selectedImageIndex;
+    // On switch, restore state if exists (and only restore, do not re-apply edits)
+    if (fabricCanvasRef.current && canvasStates[selectedImageIndex]) {
+      fabricCanvasRef.current.loadFromJSON(canvasStates[selectedImageIndex], () => {
+        fabricCanvasRef.current.renderAll();
+      });
+    } else if (fabricCanvasRef.current && currentImages[selectedImageIndex]) {
+      loadImageToCanvas(currentImages[selectedImageIndex]);
+    }
+    setUndoStack([]);
+    setRedoStack([]);
+  }, [selectedImageIndex, canvasStates, currentImages]);
+
+  // Push current state to undo stack only if different from last
+  const pushUndo = useCallback(() => {
+    if (fabricCanvasRef.current) {
+      const current = fabricCanvasRef.current.toJSON();
+      if (undoStack.length === 0 || JSON.stringify(undoStack[undoStack.length - 1]) !== JSON.stringify(current)) {
+        setUndoStack(prev => [...prev, current]);
+        setRedoStack([]); // Clear redo stack on new action
+      }
+    }
+  }, [undoStack]);
+
   // Load fabric.js dynamically
   useEffect(() => {
     const loadFabric = async () => {
@@ -403,6 +444,9 @@ export function PhotoEditor({
                 return newImages;
               });
 
+              // Save canvas state for this image
+              setCanvasStates(prev => ({ ...prev, [selectedImageIndex]: canvas.toJSON() }));
+
               // Call the parent's save handler
               onSave(session.id, selectedImageIndex, finalDataURL);
               setShowSaveDialog(true);
@@ -430,6 +474,9 @@ export function PhotoEditor({
         return newImages;
       });
 
+      // Save canvas state for this image
+      setCanvasStates(prev => ({ ...prev, [selectedImageIndex]: canvas.toJSON() }));
+
       // Call the parent's save handler
       onSave(session.id, selectedImageIndex, dataURL);
       setShowSaveDialog(true);
@@ -442,37 +489,72 @@ export function PhotoEditor({
     }
   };
 
-  const saveAllImages = () => {
+  // Premium Save All: sequentially process and save each image with watermark/edits
+  const saveAllImages = async () => {
+    if (!fabricCanvasRef.current || !fabricLoaded) return;
     const canvas = fabricCanvasRef.current;
-    if (!canvas || !isImageLoaded) return;
-
-    try {
-      // Get the current image's data URL
-      const currentDataURL = canvas.toDataURL({
-        format: "png",
-        quality: 1,
-      });
-
-      // Update the current image in local state
-      const updatedImages = [...currentImages];
-      updatedImages[selectedImageIndex] = currentDataURL;
-      setCurrentImages(updatedImages);
-
-      // Save all images (including the current one) through the parent's save handler
-      updatedImages.forEach((imageUrl, index) => {
-        onSave(session.id, index, imageUrl);
-      });
-
-      // Mark all images as edited
-      const allIndices = new Set(Array.from({ length: updatedImages.length }, (_, i) => i));
-      setEditedImages(allIndices);
-
-      // Close the photo editor after saving all images
-      onClose();
-    } catch (error) {
-      console.error('Save all failed:', error);
-      alert('Save all failed due to image security restrictions.');
+    const prevIndex = selectedImageIndex;
+    let updatedImages = [...currentImages];
+    setShowSaveDialog(true);
+    // Save current canvas state for the current image before batch export
+    setCanvasStates(prev => ({ ...prev, [selectedImageIndex]: canvas.toJSON() }));
+    for (let i = 0; i < currentImages.length; i++) {
+      if (canvasStates[i]) {
+        await new Promise(res => {
+          canvas.loadFromJSON(canvasStates[i], () => {
+            canvas.renderAll();
+            res(undefined);
+          });
+        });
+        await new Promise(res => setTimeout(res, 100));
+      } else {
+        await loadImageToCanvas(currentImages[i]);
+        await new Promise(res => setTimeout(res, 100));
+      }
+      // Re-apply current text watermark if present
+      if (watermarkText.trim() !== "") {
+        const existingText = canvas.getObjects().find((obj) => obj.id === 'textWatermark');
+        if (existingText) canvas.remove(existingText);
+        const textWatermark = new fabric.Text(watermarkText, {
+          left: canvas.getWidth() / 2,
+          top: canvas.getHeight() / 2,
+          fontFamily: 'Arial',
+          fontSize: watermarkSize,
+          fill: watermarkColor,
+          opacity: watermarkOpacity,
+          selectable: false,
+          evented: false,
+          id: 'textWatermark'
+        });
+        canvas.add(textWatermark);
+      }
+      // Re-apply current image watermark if present
+      const imageWatermarkObj = canvas.getObjects().find((obj) => obj.id === 'imageWatermark');
+      if (imageWatermarkObj && imageWatermarkObj.type === 'image' && imageWatermarkObj.getSrc) {
+        fabric.Image.fromURL(imageWatermarkObj.getSrc(), (img) => {
+          img.set({
+            left: canvas.getWidth() / 2,
+            top: canvas.getHeight() / 2,
+            opacity: watermarkImageOpacity,
+            selectable: false,
+            evented: false,
+            id: 'imageWatermark'
+          });
+          canvas.add(img);
+          canvas.renderAll();
+        });
+      }
+      canvas.renderAll();
+      await new Promise(res => setTimeout(res, 100));
+      const dataURL = canvas.toDataURL({ format: "png", quality: 1 });
+      updatedImages[i] = dataURL;
+      onSave(session.id, i, dataURL);
     }
+    setCurrentImages(updatedImages);
+    setEditedImages(new Set(Array.from({ length: updatedImages.length }, (_, i) => i)));
+    setSelectedImageIndex(prevIndex);
+    setShowSaveDialog(false);
+    onClose();
   };
 
   const toggleTool = (toolId: string) => {
@@ -485,6 +567,7 @@ export function PhotoEditor({
 
   // Filter functions
   const applyFilter = (filterType: string) => {
+    pushUndo();
     const canvas = fabricCanvasRef.current;
     if (!canvas || !fabric || !isImageLoaded) return;
 
@@ -616,6 +699,7 @@ export function PhotoEditor({
 
   // Crop functions
   const enableCropping = () => {
+    pushUndo();
     const canvas = fabricCanvasRef.current;
     if (!canvas || !fabric || !isImageLoaded) return;
 
@@ -645,6 +729,7 @@ export function PhotoEditor({
   };
 
   const cancelCrop = () => {
+    pushUndo();
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
 
@@ -657,6 +742,7 @@ export function PhotoEditor({
   };
 
   const rotateImage = (direction: 'left' | 'right') => {
+    pushUndo();
     const canvas = fabricCanvasRef.current;
     if (!canvas || !isImageLoaded) return;
 
@@ -674,6 +760,7 @@ export function PhotoEditor({
 
   // Adjustment functions with increment/decrement
   const adjustBrightness = (increment: boolean) => {
+    pushUndo();
     const newValue = increment ? Math.min(brightness + 5, 100) : Math.max(brightness - 5, -100);
     setBrightness(newValue);
     applyImageFilter('brightness', newValue / 100);
@@ -683,6 +770,7 @@ export function PhotoEditor({
   };
 
   const adjustContrast = (increment: boolean) => {
+    pushUndo();
     const newValue = increment ? Math.min(contrast + 5, 100) : Math.max(contrast - 5, -100);
     setContrast(newValue);
     applyImageFilter('contrast', newValue / 100);
@@ -692,6 +780,7 @@ export function PhotoEditor({
   };
 
   const adjustSaturation = (increment: boolean) => {
+    pushUndo();
     const newValue = increment ? Math.min(saturation + 5, 100) : Math.max(saturation - 5, -100);
     setSaturation(newValue);
     applyImageFilter('saturation', newValue / 100);
@@ -701,6 +790,7 @@ export function PhotoEditor({
   };
 
   const applyBrightness = (value: number) => {
+    pushUndo();
     setBrightness(value);
     applyImageFilter('brightness', value / 100);
     if (value !== 0) {
@@ -709,6 +799,7 @@ export function PhotoEditor({
   };
 
   const applyContrast = (value: number) => {
+    pushUndo();
     setContrast(value);
     applyImageFilter('contrast', value / 100);
     if (value !== 0) {
@@ -717,6 +808,7 @@ export function PhotoEditor({
   };
 
   const applySaturation = (value: number) => {
+    pushUndo();
     setSaturation(value);
     applyImageFilter('saturation', value / 100);
     if (value !== 0) {
@@ -725,6 +817,7 @@ export function PhotoEditor({
   };
 
   const applyImageFilter = (filterType: string, value: number) => {
+    pushUndo();
     const canvas = fabricCanvasRef.current;
     if (!canvas || !fabric || !isImageLoaded) return;
 
@@ -771,14 +864,12 @@ export function PhotoEditor({
 
   // Frame functions (improved centering)
   const applyFrame = (frameType: string) => {
+    pushUndo();
     const canvas = fabricCanvasRef.current;
     if (!canvas || !fabric || !isImageLoaded) return;
 
-    // Remove existing frame
-    const existingFrame = canvas.getObjects().find((obj: any) => obj.id === 'frame');
-    if (existingFrame) {
-      canvas.remove(existingFrame);
-    }
+    // Remove existing frame(s)
+    canvas.getObjects().filter((obj: any) => obj.id === 'frame').forEach((obj: any) => canvas.remove(obj));
 
     if (frameType === 'none') {
       setSelectedFrame('none');
@@ -880,23 +971,15 @@ export function PhotoEditor({
 
   // Border functions (improved centering)
   const applyBorder = (borderType: string) => {
+    pushUndo();
     const canvas = fabricCanvasRef.current;
     if (!canvas || !fabric || !isImageLoaded) return;
 
+    // Remove existing border(s)
+    canvas.getObjects().filter((obj: any) => obj.id === 'border' || obj.id === 'innerBorder').forEach((obj: any) => canvas.remove(obj));
+
     const mainImage = canvas.getObjects().find((obj: any) => obj.id === 'mainImage');
     if (!mainImage) return;
-
-    // Remove existing border
-    const existingBorder = canvas.getObjects().find((obj: any) => obj.id === 'border');
-    if (existingBorder) {
-      canvas.remove(existingBorder);
-    }
-
-    if (borderType === 'none') {
-      setSelectedBorder('none');
-      canvas.renderAll();
-      return;
-    }
 
     // Get the exact bounds of the main image
     const imageBounds = mainImage.getBoundingRect(true);
@@ -969,9 +1052,9 @@ export function PhotoEditor({
 
   // Watermark functions
   const addTextWatermark = () => {
+    pushUndo();
     const canvas = fabricCanvasRef.current;
     if (!canvas || !fabric || watermarkText.trim() === "" || !isImageLoaded) return;
-
     // Remove existing text watermark if any
     const existingTextWatermark = canvas.getObjects().find((obj: any) => obj.id === 'textWatermark');
     if (existingTextWatermark) {
@@ -998,12 +1081,11 @@ export function PhotoEditor({
   };
 
   const addImageWatermark = (e: React.ChangeEvent<HTMLInputElement>) => {
+    pushUndo();
     const file = e.target.files?.[0];
     if (!file || !fabric || !isImageLoaded) return;
-
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
-
     const reader = new FileReader();
     reader.onload = (event) => {
       const imgSrc = event.target?.result as string;
@@ -1038,6 +1120,7 @@ export function PhotoEditor({
 
   // Reset function
   const resetImage = () => {
+    pushUndo();
     setBrightness(0);
     setContrast(0);
     setSaturation(0);
@@ -1122,6 +1205,39 @@ export function PhotoEditor({
     }
   }, [watermarkColor]);
 
+  // Live update image watermark opacity
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas || !fabric) return;
+    const imageWatermark = canvas.getObjects().find((obj) => obj.id === 'imageWatermark');
+    if (imageWatermark) {
+      imageWatermark.set({ opacity: watermarkImageOpacity });
+      canvas.renderAll();
+    }
+  }, [watermarkImageOpacity]);
+
+  // Undo handler
+  const handleUndo = () => {
+    if (undoStack.length === 0 || !fabricCanvasRef.current) return;
+    const prevState = undoStack[undoStack.length - 1];
+    setUndoStack(undoStack.slice(0, -1));
+    setRedoStack(r => [...r, fabricCanvasRef.current!.toJSON()]);
+    fabricCanvasRef.current.loadFromJSON(prevState, () => {
+      fabricCanvasRef.current.renderAll();
+    });
+  };
+
+  // Redo handler
+  const handleRedo = () => {
+    if (redoStack.length === 0 || !fabricCanvasRef.current) return;
+    const nextState = redoStack[redoStack.length - 1];
+    setRedoStack(redoStack.slice(0, -1));
+    setUndoStack(u => [...u, fabricCanvasRef.current!.toJSON()]);
+    fabricCanvasRef.current.loadFromJSON(nextState, () => {
+      fabricCanvasRef.current.renderAll();
+    });
+  };
+
   if (!fabricLoaded) {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -1149,6 +1265,13 @@ export function PhotoEditor({
             >
               <Save className="h-4 w-4 mr-2" />
               Save All
+            </Button>
+            {/* Undo/Redo Buttons */}
+            <Button onClick={handleUndo} disabled={undoStack.length === 0} variant="outline" className="ml-2">
+              <RotateCcw className="h-4 w-4" />
+            </Button>
+            <Button onClick={handleRedo} disabled={redoStack.length === 0} variant="outline">
+              <RotateCw className="h-4 w-4" />
             </Button>
             <Button onClick={onClose} variant="ghost" size="icon">
               <X className="h-4 w-4" />
@@ -1461,119 +1584,110 @@ export function PhotoEditor({
 
                       {/* Watermark Tools */}
                       {category.id === 'watermark' && (
-                        <div className="space-y-4">
-                          {/* Text Watermark */}
-                          <div className="space-y-3">
-                            <h4 className="font-medium flex items-center">
-                              <Type className="h-4 w-4 mr-2" />
-                              Text Watermark
-                            </h4>
+                        <div className="space-y-8">
+                          {/* Minimal Text Watermark Section */}
+                          <div className="flex flex-col gap-4">
+                            <h4 className="font-semibold text-sm text-gray-700 dark:text-gray-200 mb-1">Text Watermark</h4>
                             <Input
                               placeholder="Enter watermark text"
                               value={watermarkText}
                               onChange={(e) => setWatermarkText(e.target.value)}
                               disabled={!isImageLoaded}
+                              className="mb-1 text-base px-3 py-2"
                             />
-                            <div className="grid grid-cols-2 gap-2">
-                              <div>
-                                <label className="text-xs">Size: {watermarkSize}px</label>
-                                <Input
-                                  type="range"
-                                  min="12"
-                                  max="72"
-                                  value={watermarkSize}
-                                  onChange={(e) => setWatermarkSize(Number(e.target.value))}
-                                  disabled={!isImageLoaded}
-                                />
-                              </div>
-                              <div>
-                                <label className="text-xs">Opacity: {Math.round(watermarkOpacity * 100)}%</label>
-                                <Input
-                                  type="range"
-                                  min="0.1"
-                                  max="1"
-                                  step="0.01"
-                                  value={watermarkOpacity}
-                                  onChange={(e) => setWatermarkOpacity(Number(e.target.value))}
-                                  disabled={!isImageLoaded}
-                                />
-                              </div>
-                            </div>
-                            <div>
-                              <label className="text-xs mb-1 block">Color</label>
-                              {/* Popular color swatches */}
-                              <div className="flex gap-2 mb-2">
-                                {[
-                                  { name: 'Black', value: '#000000' },
-                                  { name: 'White', value: '#FFFFFF' },
-                                  { name: 'Brown', value: '#8B4513' },
-                                  { name: 'Red', value: '#FF0000' },
-                                  { name: 'Blue', value: '#0074D9' },
-                                  { name: 'Green', value: '#2ECC40' },
-                                  { name: 'Yellow', value: '#FFDC00' },
-                                ].map((swatch) => (
-                                  <button
-                                    key={swatch.value}
-                                    type="button"
-                                    className={`w-6 h-6 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all duration-150 ${watermarkColor.toLowerCase() === swatch.value.toLowerCase() ? 'border-blue-500 scale-110' : 'border-gray-300'}`}
-                                    style={{ backgroundColor: swatch.value }}
-                                    onClick={() => setWatermarkColor(swatch.value)}
-                                    aria-label={swatch.name}
+                            <div className="flex flex-col gap-2">
+                              <div className="flex items-center gap-4">
+                                <div className="flex-1 flex flex-col gap-1">
+                                  <span className="text-xs text-gray-500">Size</span>
+                                  <Input
+                                    type="range"
+                                    min="12"
+                                    max="72"
+                                    value={watermarkSize}
+                                    onChange={(e) => setWatermarkSize(Number(e.target.value))}
+                                    disabled={!isImageLoaded}
+                                    className="w-full h-2"
+                                    style={{ accentColor: '#888' }}
                                   />
-                                ))}
-                                {/* Preview of current color */}
-                                <div className="w-6 h-6 rounded-full border-2 border-dashed border-gray-400 flex items-center justify-center ml-2" title="Current Color Preview">
-                                  <div style={{ backgroundColor: watermarkColor, width: '1.25rem', height: '1.25rem', borderRadius: '9999px' }} />
+                                </div>
+                                <div className="flex-1 flex flex-col gap-1">
+                                  <span className="text-xs text-gray-500">Opacity</span>
+                                  <Input
+                                    type="range"
+                                    min="0.1"
+                                    max="1"
+                                    step="0.01"
+                                    value={watermarkOpacity}
+                                    onChange={(e) => setWatermarkOpacity(Number(e.target.value))}
+                                    disabled={!isImageLoaded}
+                                    className="w-full h-2"
+                                    style={{ accentColor: '#888' }}
+                                  />
                                 </div>
                               </div>
-                              {/* Color wheel for custom color */}
-                              <div className="flex justify-center my-2">
-                                <HexColorPicker 
-                                  color={watermarkColor} 
-                                  onChange={setWatermarkColor} 
-                                  style={{ width: 160, height: 160, borderRadius: '9999px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
-                                />
+                              <div>
+                                <span className="text-xs text-gray-500">Color</span>
+                                <div className="flex items-center gap-3 mt-1 mb-4">
+                                  {[
+                                    { name: 'Black', value: '#000000' },
+                                    { name: 'White', value: '#FFFFFF' },
+                                    { name: 'Brown', value: '#8B4513' },
+                                    { name: 'Red', value: '#FF0000' },
+                                    { name: 'Blue', value: '#0074D9' },
+                                    { name: 'Green', value: '#2ECC40' },
+                                    { name: 'Yellow', value: '#FFDC00' },
+                                  ].map((swatch) => (
+                                    <button
+                                      key={swatch.value}
+                                      type="button"
+                                      className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all duration-150 ${watermarkColor.toLowerCase() === swatch.value.toLowerCase() ? 'border-blue-400 scale-110' : 'border-gray-200'}`}
+                                      style={{ backgroundColor: swatch.value }}
+                                      onClick={() => setWatermarkColor(swatch.value)}
+                                      aria-label={swatch.name}
+                                    />
+                                  ))}
+                                </div>
+                                <div className="flex justify-center mt-2 mb-4">
+                                  <HexColorPicker 
+                                    color={watermarkColor} 
+                                    onChange={setWatermarkColor} 
+                                    style={{ width: 120, height: 120, borderRadius: '9999px', boxShadow: 'none' }}
+                                  />
+                                </div>
                               </div>
-                              <Input
-                                type="color"
-                                value={watermarkColor}
-                                onChange={(e) => setWatermarkColor(e.target.value)}
-                                className="w-full h-8"
-                                disabled={!isImageLoaded}
-                              />
                             </div>
                             <Button
                               onClick={addTextWatermark}
-                              className="w-full"
+                              variant="ghost"
+                              className="w-full py-2 text-base font-medium border border-gray-200 dark:border-slate-700 mt-4"
                               disabled={!isImageLoaded || !watermarkText.trim()}
                             >
                               Add Text Watermark
                             </Button>
                           </div>
-
-                          {/* Image Watermark */}
-                          <div className="space-y-3 pt-3 border-t">
-                            <h4 className="font-medium flex items-center">
-                              <ImageIcon className="h-4 w-4 mr-2" />
-                              Image Watermark
-                            </h4>
-                            <div>
-                              <label className="text-xs">Opacity: {Math.round(watermarkImageOpacity * 100)}%</label>
+                          {/* Divider and Image Watermark section remain unchanged */}
+                          <div className="border-t border-gray-200 dark:border-slate-700 my-2" />
+                          {/* Image Watermark Card */}
+                          <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4 flex flex-col gap-4 border border-gray-100 dark:border-slate-700">
+                            <h4 className="font-semibold text-base mb-1">Image Watermark</h4>
+                            <div className="flex flex-col gap-2">
+                              <label className="text-xs font-medium">Opacity</label>
                               <Input
                                 type="range"
                                 min="0.1"
                                 max="1"
-                                step="0.1"
+                                step="0.01"
                                 value={watermarkImageOpacity}
                                 onChange={(e) => setWatermarkImageOpacity(Number(e.target.value))}
                                 disabled={!isImageLoaded}
-                                className="w-full mt-1"
+                                className="w-full h-3"
                               />
+                              <span className="text-xs text-gray-500">{Math.round(watermarkImageOpacity * 100)}%</span>
                             </div>
                             <Button
                               onClick={() => watermarkInputRef.current?.click()}
                               variant="outline"
-                              className="w-full"
+                              className="w-full py-3 text-base font-semibold"
                               disabled={!isImageLoaded}
                             >
                               Choose Image
@@ -1639,21 +1753,19 @@ export function PhotoEditor({
                   key={index}
                   className={`relative cursor-pointer overflow-hidden transition-all duration-200 ${
                     selectedImageIndex === index
-                      ? "shadow-lg" // Optional: subtle shadow for selection
-                      : ""
+                      ? "ring-2 ring-blue-400 bg-blue-50" // Premium highlight
+                      : "bg-white"
                   }`}
-                  style={{ borderRadius: '1rem' }}
+                  style={{ borderRadius: '1rem', aspectRatio: '1 / 1', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0, minWidth: 0 }}
                   onClick={() => setSelectedImageIndex(index)}
                 >
-                  <div className="w-full aspect-square flex items-center justify-center overflow-hidden" style={{ borderRadius: '1rem' }}>
-                    <img
-                      src={image}
-                      alt={`Thumbnail ${index + 1}`}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                      style={{ display: 'block' }}
-                    />
-                  </div>
+                  <img
+                    src={image}
+                    alt={`Thumbnail ${index + 1}`}
+                    className="w-full h-full object-cover rounded-lg"
+                    loading="lazy"
+                    style={{ aspectRatio: '1 / 1', display: 'block' }}
+                  />
                   {/* Edited Badge */}
                   {editedImages.has(index) && (
                     <div className="absolute top-1 left-1 bg-green-500 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
