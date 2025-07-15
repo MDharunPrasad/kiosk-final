@@ -443,10 +443,13 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
                   <div className="flex-1 min-w-0 max-w-full">
                     <div className="flex items-center gap-3">
                       <h3 className="font-medium text-sm truncate max-w-full">{session.customerDetails.name}</h3>
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full border font-semibold text-xs shadow-sm ${getStatusColor(session.status)}`}
-                        style={{ minWidth: 70, justifyContent: 'center', letterSpacing: '0.01em' }}>
-                        {session.status}
-                      </span>
+                      {/*
+                        // To show the session status badge again, uncomment the line below:
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full border font-semibold text-xs shadow-sm ${getStatusColor(session.status)}`}
+                          style={{ minWidth: 70, justifyContent: 'center', letterSpacing: '0.01em' }}>
+                          {session.status}
+                        </span>
+                        */}
                     </div>
                     <p className="text-xs text-muted-foreground font-medium">{session.date}</p>
                   </div>
@@ -476,7 +479,10 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
               <div className="text-center mb-3">
                 <div className="flex items-center justify-center gap-2 mb-1">
                   <h2 className="text-lg font-bold text-slate-800 dark:text-white">{selectedSession.customerDetails.name}</h2>
+                  {/*
+                  // To show the session status badge again, uncomment the line below:
                   <span className={`text-sm px-3 py-1 rounded-full border ${getStatusColor(selectedSession.status)}`}>{selectedSession.status}</span>
+                  */}
                 </div>
                 <p className="text-sm text-slate-600 dark:text-slate-300 text-center">{selectedSession.date}</p>
               </div>
@@ -598,6 +604,7 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
                           ? "border-green-400 bg-green-50 ring-1 ring-green-200"
                           : "border-gray-200 bg-white shadow"
                       }`}
+                      onClick={() => setCurrentImageIndex(index)}
                     >
                       {/* Static tick box for selection */}
                       <input
