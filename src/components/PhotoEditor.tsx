@@ -1589,7 +1589,7 @@ export function PhotoEditor({
                           <div className="flex flex-col gap-4">
                             <h4 className="font-semibold text-sm text-gray-700 dark:text-gray-200 mb-1">Text Watermark</h4>
                             <Input
-                              placeholder="Enter watermark text"
+                              placeholder="watermark text"
                               value={watermarkText}
                               onChange={(e) => setWatermarkText(e.target.value)}
                               disabled={!isImageLoaded}

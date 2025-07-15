@@ -252,7 +252,8 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
           onClick={handleBackToLastSession}
           className="flex items-center gap-3 text-blue-600 hover:text-blue-800 transition-all duration-200 group"
         >
-          <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Photo Kiosk</span>
+          <img src="/m2-logo.jpg" alt="M2 Photography Logo" className="w-8 h-8 object-contain rounded mr-2" />
+          <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">M2 Photography</span>
         </button>
         
         <div className="flex items-center gap-8">
@@ -302,7 +303,7 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
             <div
               key={session.id}
               onClick={() => handleSessionSelect(session)}
-              className={`p-3 rounded-lg cursor-pointer transition-all hover:scale-105 ${
+              className={`p-3 rounded-lg cursor-pointer transition-all hover:scale-90 ${
                 selectedSession.id === session.id
                   ? "bg-gradient-to-r from-blue-100 to-indigo-100 dark:from-blue-900 dark:to-indigo-900 border border-blue-300 shadow-md"
                   : "bg-muted/50 hover:bg-muted border border-transparent"

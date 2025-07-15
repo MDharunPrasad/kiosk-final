@@ -27,12 +27,13 @@ interface Session {
     name: string;
     location: string;
     date: string;
+    photographer?: string; // Added photographer field
   };
   status: "pending" | "ready" | "completed";
   printCount?: number;
 }
 
-const mockSessions: Session[] = [
+export const mockSessions: Session[] = [
   {
     id: "1",
     name: "Family Portrait",
@@ -47,7 +48,8 @@ const mockSessions: Session[] = [
     customerDetails: {
       name: "Johnson Family",
       location: "Central Park",
-      date: "2024-07-20"
+      date: "2024-07-20",
+      photographer: "John Doe"
     }
   },
   {
@@ -64,7 +66,8 @@ const mockSessions: Session[] = [
     customerDetails: {
       name: "Sarah & Mike",
       location: "Riverside Gardens",
-      date: "2024-07-15"
+      date: "2024-07-15",
+      photographer: "Jane Smith"
     }
   },
   {
@@ -81,7 +84,8 @@ const mockSessions: Session[] = [
     customerDetails: {
       name: "Emily Rodriguez",
       location: "University Campus",
-      date: "2024-07-10"
+      date: "2024-07-10",
+      photographer: "John Doe"
     }
   },
   {
@@ -98,7 +102,8 @@ const mockSessions: Session[] = [
     customerDetails: {
       name: "Tech Solutions Inc",
       location: "Office Building",
-      date: "2024-07-05"
+      date: "2024-07-05",
+      photographer: "Jane Smith"
     }
   }
 ];
@@ -114,6 +119,7 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string>("");
+  const [selectedPhotographer, setSelectedPhotographer] = useState<string>(""); // Added state for selectedPhotographer
   const [sessions, setSessions] = useState<Session[]>(mockSessions);
   const [zoom, setZoom] = useState(1);
   const { cartItems, addToCart } = useCart();
@@ -171,7 +177,8 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
                          session.customerDetails.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesDate = !selectedDate || session.date === selectedDate;
     const matchesStatus = !selectedStatus || session.status === selectedStatus;
-    return matchesSearch && matchesDate && matchesStatus;
+    const matchesPhotographer = !selectedPhotographer || session.customerDetails?.photographer === selectedPhotographer;
+    return matchesSearch && matchesDate && matchesStatus && matchesPhotographer;
   });
 
   const nextImage = () => {
@@ -364,7 +371,8 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
           title="Back"
         >
           <ChevronLeft className="h-6 w-6 invisible" />
-          <span className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">Photo Kiosk</span>
+          <img src="/m2-logo.jpg" alt="M2 Photography Logo" className="w-8 h-8 object-contain rounded mr-2" />
+          <span className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">M2 Photography</span>
         </button>
         
         <div className="flex items-center gap-4 lg:gap-8">
@@ -408,21 +416,38 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
             />
           </div>
 
-          {/* Status Filter */}
-          <div className="mb-6 relative">
-            <select
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-              className="w-full p-2 border border-border rounded-md bg-background appearance-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="">All Status</option>
-              <option value="pending">Pending</option>
-              <option value="ready">Ready</option>
-              <option value="completed">Completed</option>
-            </select>
-            <span className="pointer-events-none absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-              <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><path d="M6 8l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            </span>
+          {/* Status and Photographer Filters Row */}
+          <div className="mb-6 flex gap-2 items-center">
+            <div className="relative w-28">
+              <select
+                value={selectedStatus}
+                onChange={(e) => setSelectedStatus(e.target.value)}
+                className="w-full p-2 border border-border rounded-md bg-background appearance-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="ready">Ready</option>
+                <option value="completed">Completed</option>
+              </select>
+              <span className="pointer-events-none absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><path d="M6 8l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </span>
+            </div>
+            <div className="relative w-36">
+              <select
+                value={selectedPhotographer || ''}
+                onChange={(e) => setSelectedPhotographer(e.target.value)}
+                className="w-full p-2 border border-border rounded-md bg-background appearance-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Photographer</option>
+                {Array.from(new Set(sessions.map(s => s.customerDetails?.photographer || ''))).filter(Boolean).map(name => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </select>
+              <span className="pointer-events-none absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><path d="M6 8l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </span>
+            </div>
           </div>
 
           {/* Sessions List - Scrollable */}
@@ -431,7 +456,7 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
               <div
                 key={session.id}
                 onClick={() => handleSessionSelect(session)}
-                className={`p-3 rounded-lg cursor-pointer transition-all hover:scale-105 min-w-0 max-w-full
+                className={`p-3 rounded-lg cursor-pointer transition-all hover:scale-90 min-w-0 max-w-full
                   ${selectedSession.id === session.id
                     ? "bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-900 dark:to-emerald-900 border border-green-300 shadow-md"
                     : "bg-muted/50 hover:bg-muted border border-transparent"}
