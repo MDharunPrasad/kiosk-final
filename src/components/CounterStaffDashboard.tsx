@@ -328,23 +328,6 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
     navigate("/cart");
   };
 
-  const handleSaveEditedImage = (sessionId: string, imageIndex: number, editedImageUrl: string) => {
-    setSessions(prevSessions => prevSessions.map(session => {
-      if (session.id === sessionId) {
-        const newImages = [...session.images];
-        newImages[imageIndex] = editedImageUrl;
-        return { ...session, images: newImages };
-      }
-      return session;
-    }));
-    // If the currently selected session is the one being edited, update it too
-    if (selectedSession.id === sessionId) {
-      const newImages = [...selectedSession.images];
-      newImages[imageIndex] = editedImageUrl;
-      setSelectedSession({ ...selectedSession, images: newImages });
-    }
-  };
-
   return (
     <div className="h-screen bg-gradient-to-br from-green-50 to-emerald-100 dark:from-slate-900 dark:to-slate-800 flex flex-col overflow-hidden">
       {/* Top Header */}
