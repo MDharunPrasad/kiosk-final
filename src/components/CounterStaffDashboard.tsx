@@ -28,8 +28,10 @@ interface Session {
     location: string;
     date: string;
   };
-  status: "pending" | "ordered";
+  status: "pending" | "ordered" | "ready" | "completed";
   printCount?: number;
+  editedImages?: number[];
+  originalImages?: string[];
 }
 
 const mockSessions: Session[] = [
