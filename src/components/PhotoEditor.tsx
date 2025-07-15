@@ -330,6 +330,92 @@ export function PhotoEditor({
     const canvas = fabricCanvasRef.current;
     if (!canvas || !isImageLoaded) return;
 
+    // If we're in cropping mode, apply the crop first
+    if (isCropping) {
+      const cropRect = canvas.getObjects().find((obj: any) => obj.id === 'cropRect');
+      const mainImage = canvas.getObjects().find((obj: any) => obj.id === 'mainImage');
+
+      if (cropRect && mainImage) {
+        const cropBounds = cropRect.getBoundingRect();
+        
+        const tempCanvas = document.createElement('canvas');
+        const tempCtx = tempCanvas.getContext('2d');
+        
+        if (tempCtx) {
+          tempCanvas.width = cropBounds.width;
+          tempCanvas.height = cropBounds.height;
+          
+          cropRect.visible = false;
+          canvas.renderAll();
+          
+          const cleanCanvas = canvas.toCanvasElement();
+          
+          tempCtx.drawImage(
+            cleanCanvas,
+            cropBounds.left,
+            cropBounds.top,
+            cropBounds.width,
+            cropBounds.height,
+            0,
+            0,
+            cropBounds.width,
+            cropBounds.height
+          );
+          
+          const croppedDataURL = tempCanvas.toDataURL('image/png');
+          
+          fabric.Image.fromURL(croppedDataURL, (newImg: any) => {
+            canvas.clear();
+            
+            const canvasWidth = canvas.getWidth();
+            const canvasHeight = canvas.getHeight();
+            const newScale = Math.min(canvasWidth / newImg.width!, canvasHeight / newImg.height!) * 0.8;
+            
+            newImg.scale(newScale);
+            newImg.set({
+              left: canvasWidth / 2,
+              top: canvasHeight / 2,
+              originX: 'center',
+              originY: 'center',
+              selectable: false,
+              evented: false,
+              id: 'mainImage'
+            });
+            
+            canvas.add(newImg);
+            canvas.renderAll();
+            
+            originalImageRef.current = newImg;
+            setIsCropping(false);
+            
+            // After applying crop, save the image
+            setTimeout(() => {
+              const finalDataURL = canvas.toDataURL({
+                format: "png",
+                quality: 1,
+              });
+
+              // Update local currentImages state immediately
+              setCurrentImages(prev => {
+                const newImages = [...prev];
+                newImages[selectedImageIndex] = finalDataURL;
+                return newImages;
+              });
+
+              // Call the parent's save handler
+              onSave(session.id, selectedImageIndex, finalDataURL);
+              setShowSaveDialog(true);
+              
+              // Mark this image as edited
+              setEditedImages(prev => new Set(prev).add(selectedImageIndex));
+            }, 100);
+          });
+          return;
+        }
+      }
+    }
+
+    // Normal save functionality
     try {
       const dataURL = canvas.toDataURL({
         format: "png",
@@ -541,7 +627,7 @@ export function PhotoEditor({
         width: imageBounds.width / 2,
         height: imageBounds.height / 2,
         fill: 'transparent',
-        stroke: '#ff0000',
+        stroke: '#009c00ff', // Changed from '#ff0000' to dark green
         strokeWidth: 2,
         strokeDashArray: [5, 5],
         selectable: true,
@@ -551,72 +637,6 @@ export function PhotoEditor({
       canvas.add(cropRect);
       canvas.setActiveObject(cropRect);
       canvas.renderAll();
-    }
-  };
-
-  const applyCrop = () => {
-    const canvas = fabricCanvasRef.current;
-    if (!canvas || !isImageLoaded) return;
-
-    const cropRect = canvas.getObjects().find((obj: any) => obj.id === 'cropRect');
-    const mainImage = canvas.getObjects().find((obj: any) => obj.id === 'mainImage');
-
-    if (cropRect && mainImage) {
-      const cropBounds = cropRect.getBoundingRect();
-      
-      const tempCanvas = document.createElement('canvas');
-      const tempCtx = tempCanvas.getContext('2d');
-      
-      if (tempCtx) {
-        tempCanvas.width = cropBounds.width;
-        tempCanvas.height = cropBounds.height;
-        
-        cropRect.visible = false;
-        canvas.renderAll();
-        
-        const cleanCanvas = canvas.toCanvasElement();
-        
-        tempCtx.drawImage(
-          cleanCanvas,
-          cropBounds.left,
-          cropBounds.top,
-          cropBounds.width,
-          cropBounds.height,
-          0,
-          0,
-          cropBounds.width,
-          cropBounds.height
-        );
-        
-        const croppedDataURL = tempCanvas.toDataURL('image/png');
-        
-        fabric.Image.fromURL(croppedDataURL, (newImg: any) => {
-          canvas.clear();
-          
-          const canvasWidth = canvas.getWidth();
-          const canvasHeight = canvas.getHeight();
-          const newScale = Math.min(canvasWidth / newImg.width!, canvasHeight / newImg.height!) * 0.8;
-          
-          newImg.scale(newScale);
-          newImg.set({
-            left: canvasWidth / 2,
-            top: canvasHeight / 2,
-            originX: 'center',
-            originY: 'center',
-            selectable: false,
-            evented: false,
-            id: 'mainImage'
-          });
-          
-          canvas.add(newImg);
-          canvas.renderAll();
-          
-          originalImageRef.current = newImg;
-          setIsCropping(false);
-          
-          setEditedImages(prev => new Set(prev).add(selectedImageIndex));
-        });
-      }
     }
   };
 
@@ -1132,11 +1152,14 @@ export function PhotoEditor({
                             </Button>
                           ) : (
                             <div className="space-y-2">
-                              <Button onClick={applyCrop} className="w-full bg-green-600 hover:bg-green-700">
-                                Apply Crop
-                              </Button>
+                              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                                <p className="text-sm text-blue-700 dark:text-blue-300">
+                                  <Crop className="h-4 w-4 inline mr-2" />
+                                  Crop mode active. Adjust the red rectangle on the image, then click "Save Changes" to apply the crop.
+                                </p>
+                              </div>
                               <Button onClick={cancelCrop} className="w-full" variant="outline">
-                                Cancel
+                                Cancel Crop
                               </Button>
                             </div>
                           )}
@@ -1517,11 +1540,11 @@ export function PhotoEditor({
             <div className="mt-4 flex gap-3">
               <Button 
                 onClick={saveCurrentImage}
-                className="bg-green-600 hover:bg-green-700 px-8 py-2"
+                className={`px-8 py-2 ${isCropping ? 'bg-orange-600 hover:bg-orange-700' : 'bg-green-600 hover:bg-green-700'}`}
                 disabled={!isImageLoaded}
               >
                 <Save className="h-4 w-4 mr-2" />
-                Save Changes
+                {isCropping ? 'Apply Crop & Save' : 'Save Changes'}
               </Button>
               <Button 
                 onClick={resetImage} 
