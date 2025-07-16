@@ -118,7 +118,6 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDate, setSelectedDate] = useState("");
-  const [selectedStatus, setSelectedStatus] = useState<string>("");
   const [selectedPhotographer, setSelectedPhotographer] = useState<string>(""); // Added state for selectedPhotographer
   const [sessions, setSessions] = useState<Session[]>(mockSessions);
   const [zoom, setZoom] = useState(1);
@@ -176,9 +175,8 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
     const matchesSearch = session.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          session.customerDetails.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesDate = !selectedDate || session.date === selectedDate;
-    const matchesStatus = !selectedStatus || session.status === selectedStatus;
     const matchesPhotographer = !selectedPhotographer || session.customerDetails?.photographer === selectedPhotographer;
-    return matchesSearch && matchesDate && matchesStatus && matchesPhotographer;
+    return matchesSearch && matchesDate && matchesPhotographer;
   });
 
   const nextImage = () => {
@@ -418,21 +416,7 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
 
           {/* Status and Photographer Filters Row */}
           <div className="mb-6 flex gap-2 items-center">
-            <div className="relative w-28">
-              <select
-                value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
-                className="w-full p-2 border border-border rounded-md bg-background appearance-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">All Status</option>
-                <option value="pending">Pending</option>
-                <option value="ready">Ready</option>
-                <option value="completed">Completed</option>
-              </select>
-              <span className="pointer-events-none absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><path d="M6 8l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              </span>
-            </div>
+            {/* Photographer Dropdown Only */}
             <div className="relative w-36">
               <select
                 value={selectedPhotographer || ''}
