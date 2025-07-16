@@ -54,6 +54,7 @@ export default function Cart() {
       total,
       orderDate,
       photographer,
+      orderNumber, // Pass order number
     };
     clearCart();
     navigate("/order-confirmation", { state: orderDetails });
@@ -64,8 +65,8 @@ export default function Cart() {
       <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
         <div className="bg-white p-8 rounded-2xl shadow-xl border border-gray-200 text-center">
           <h1 className="text-2xl font-bold mb-2">Your cart is empty</h1>
-          <p className="mb-4 text-gray-500">Go back and add some photos to your cart.</p>
-          <button className="text-blue-600 hover:underline text-sm" onClick={() => window.history.back()}>&larr; Back to Editor</button>
+          <p className="mb-4 text-gray-500">Go back to the dashboard and add some photos to your cart.</p>
+          <button className="text-blue-600 hover:underline text-sm" onClick={() => navigate('/operator')}>&larr; Back to Dashboard</button>
         </div>
       </div>
     );
