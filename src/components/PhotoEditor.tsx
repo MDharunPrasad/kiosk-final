@@ -201,11 +201,13 @@ export function PhotoEditor({
     setRedoStack([]);
   }, [selectedImageIndex, canvasStates, currentImages]);
 
-  // Push current state to undo stack only if different from last
+  // Push current state to undo stack only if main image is present, using deep copy
   const pushUndo = useCallback(() => {
     if (fabricCanvasRef.current) {
-      const current = fabricCanvasRef.current.toJSON();
-      if (undoStack.length === 0 || JSON.stringify(undoStack[undoStack.length - 1]) !== JSON.stringify(current)) {
+      const current = JSON.parse(JSON.stringify(fabricCanvasRef.current.toJSON()));
+      const hasMainImage = (fabricCanvasRef.current.getObjects().find((obj: any) => obj.id === 'mainImage'));
+      if (hasMainImage && (undoStack.length === 0 || JSON.stringify(undoStack[undoStack.length - 1]) !== JSON.stringify(current))) {
+        console.log('Pushing to undoStack:', current);
         setUndoStack(prev => [...prev, current]);
         setRedoStack([]); // Clear redo stack on new action
       }
@@ -361,6 +363,8 @@ export function PhotoEditor({
         setSelectedBorder('none');
         setSelectedFilter('none');
         setIsCropping(false);
+        // Push initial state to undo stack if this is the first load for this image
+        setUndoStack(prev => prev.length === 0 ? [canvas.toJSON()] : prev);
       }, { crossOrigin: 'anonymous' });
       
     } catch (error) {
@@ -433,7 +437,10 @@ export function PhotoEditor({
 
             originalImageRef.current = newImg;
             setIsCropping(false);
-
+            // Auto-hug: re-apply border if a style is selected
+            if (selectedBorder && selectedBorder !== 'none') {
+              applyBorder(selectedBorder);
+            }
             // After applying crop, save the image
             setTimeout(() => {
               const finalDataURL = canvas.toDataURL({
@@ -466,27 +473,55 @@ export function PhotoEditor({
 
     // Normal save functionality
     try {
-      const dataURL = canvas.toDataURL({
-        format: "png",
-        quality: 1,
+      // Find bounding box of main image and border
+      const canvas = fabricCanvasRef.current;
+      const mainImage = canvas.getObjects().find((obj: any) => obj.id === 'mainImage');
+      const borderObj = canvas.getObjects().find((obj: any) => obj.id === 'border');
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      [mainImage, borderObj].forEach(obj => {
+        if (obj) {
+          const bounds = obj.getBoundingRect(true);
+          minX = Math.min(minX, bounds.left);
+          minY = Math.min(minY, bounds.top);
+          maxX = Math.max(maxX, bounds.left + bounds.width);
+          maxY = Math.max(maxY, bounds.top + bounds.height);
+        }
       });
-
-      // Update local currentImages state immediately
-      setCurrentImages(prev => {
-        const newImages = [...prev];
-        newImages[selectedImageIndex] = dataURL;
-        return newImages;
-      });
-
-      // Save canvas state for this image
-      setCanvasStates(prev => ({ ...prev, [selectedImageIndex]: canvas.toJSON() }));
-
-      // Call the parent's save handler
-      onSave(session.id, selectedImageIndex, dataURL);
-      setShowSaveDialog(true);
-      
-      // Mark this image as edited
-      setEditedImages(prev => new Set(prev).add(selectedImageIndex));
+      if (minX !== Infinity && minY !== Infinity && maxX !== -Infinity && maxY !== -Infinity) {
+        // Export only the bounding box area
+        const dataURL = canvas.toDataURL({
+          format: "png",
+          quality: 1,
+          left: minX,
+          top: minY,
+          width: maxX - minX,
+          height: maxY - minY
+        });
+        setCurrentImages(prev => {
+          const newImages = [...prev];
+          newImages[selectedImageIndex] = dataURL;
+          return newImages;
+        });
+        setCanvasStates(prev => ({ ...prev, [selectedImageIndex]: canvas.toJSON() }));
+        onSave(session.id, selectedImageIndex, dataURL);
+        setShowSaveDialog(true);
+        setEditedImages(prev => new Set(prev).add(selectedImageIndex));
+      } else {
+        // Fallback to full canvas export
+        const dataURL = canvas.toDataURL({
+          format: "png",
+          quality: 1,
+        });
+        setCurrentImages(prev => {
+          const newImages = [...prev];
+          newImages[selectedImageIndex] = dataURL;
+          return newImages;
+        });
+        setCanvasStates(prev => ({ ...prev, [selectedImageIndex]: canvas.toJSON() }));
+        onSave(session.id, selectedImageIndex, dataURL);
+        setShowSaveDialog(true);
+        setEditedImages(prev => new Set(prev).add(selectedImageIndex));
+      }
     } catch (error) {
       console.error('Save failed:', error);
       alert('Save failed due to image security restrictions.');
@@ -975,6 +1010,7 @@ export function PhotoEditor({
 
   // Border functions (improved centering)
   const applyBorder = (borderType: string) => {
+    // Ensure pushUndo is called BEFORE any canvas mutation
     pushUndo();
     const canvas = fabricCanvasRef.current;
     if (!canvas || !fabric || !isImageLoaded) return;
@@ -994,8 +1030,9 @@ export function PhotoEditor({
 
     // Get the exact bounds of the main image
     const imageBounds = mainImage.getBoundingRect(true);
-    const centerX = mainImage.left;
-    const centerY = mainImage.top;
+    // Use the center of the image bounds for the border
+    const centerX = imageBounds.left + imageBounds.width / 2;
+    const centerY = imageBounds.top + imageBounds.height / 2;
 
     let borderRect;
     let strokeDashArray: number[] | undefined;
@@ -1031,8 +1068,8 @@ export function PhotoEditor({
       strokeDashArray: strokeDashArray,
       rx: borderType === 'rounded' ? 10 : 0,
       ry: borderType === 'rounded' ? 10 : 0,
-      selectable: false,
-      evented: false,
+      selectable: false, // Auto-hug: not movable
+      evented: false,    // Auto-hug: not interactive
       id: 'border'
     });
 
@@ -1230,15 +1267,98 @@ export function PhotoEditor({
     }
   }, [watermarkImageOpacity]);
 
+  // Helper to sync React tool state with canvas objects and re-apply to canvas
+  const syncToolStateWithCanvas = () => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+    // Border
+    const borderObj = canvas.getObjects().find((obj: any) => obj.id === 'border');
+    if (borderObj) {
+      // Determine border type from strokeDashArray and rx/ry
+      let borderType = 'solid';
+      if (borderObj.strokeDashArray && borderObj.strokeDashArray.length) {
+        if (borderObj.strokeDashArray[0] === 10 && borderObj.strokeDashArray[1] === 5) borderType = 'dashed';
+        else if (borderObj.strokeDashArray[0] === 2 && borderObj.strokeDashArray[1] === 3) borderType = 'dotted';
+      } else if (borderObj.rx === 10 && borderObj.ry === 10) {
+        borderType = 'rounded';
+      }
+      setSelectedBorder(borderType);
+      setBorderWidth(borderObj.strokeWidth || 10);
+      setBorderColor(borderObj.stroke || '#000000');
+    } else {
+      setSelectedBorder('none');
+      setBorderWidth(10);
+      setBorderColor('#000000');
+    }
+    // Frame
+    const frameObj = canvas.getObjects().find((obj: any) => obj.id === 'frame');
+    setSelectedFrame(frameObj ? 'classic' : 'none');
+    // Filter (try to detect grayscale, sepia, etc.)
+    const mainImage = canvas.getObjects().find((obj: any) => obj.id === 'mainImage');
+    if (mainImage && mainImage.filters && mainImage.filters.length > 0) {
+      const hasGrayscale = mainImage.filters.some((f: any) => f && f.type === 'Grayscale');
+      const hasSepia = mainImage.filters.some((f: any) => f && f.type === 'Sepia');
+      setSelectedFilter(hasGrayscale ? 'blackwhite' : hasSepia ? 'sepia' : 'none');
+    } else {
+      setSelectedFilter('none');
+    }
+    // Cropping
+    const hasCrop = canvas.getObjects().some((obj: any) => obj.id === 'cropRect');
+    setIsCropping(hasCrop);
+    // Enable edits if main image is present
+    setIsImageLoaded(!!mainImage);
+  };
+
+  // Helper to extract border info from a Fabric.js JSON state
+  function extractBorderFromJSON(json) {
+    if (!json || !json.objects) return null;
+    const borderObj = json.objects.find(obj => obj.id === 'border');
+    if (!borderObj) return null;
+    let borderType = 'solid';
+    if (borderObj.strokeDashArray && borderObj.strokeDashArray.length) {
+      if (borderObj.strokeDashArray[0] === 10 && borderObj.strokeDashArray[1] === 5) borderType = 'dashed';
+      else if (borderObj.strokeDashArray[0] === 2 && borderObj.strokeDashArray[1] === 3) borderType = 'dotted';
+    } else if (borderObj.rx === 10 && borderObj.ry === 10) {
+      borderType = 'rounded';
+    }
+    return {
+      type: borderType,
+      color: borderObj.stroke || '#000000',
+      width: borderObj.strokeWidth || 10
+    };
+  }
+
   // Undo handler
   const handleUndo = () => {
     if (undoStack.length === 0 || !fabricCanvasRef.current) return;
     const prevState = undoStack[undoStack.length - 1];
     setUndoStack(undoStack.slice(0, -1));
-    setRedoStack(r => [...r, fabricCanvasRef.current!.toJSON()]);
+    const currentState = JSON.parse(JSON.stringify(fabricCanvasRef.current.toJSON()));
+    setRedoStack(r => [...r, currentState]);
+    console.log('Undo: loading prevState', prevState);
     fabricCanvasRef.current.loadFromJSON(prevState, () => {
       fabricCanvasRef.current.renderAll();
       syncToolStateWithCanvas();
+      // Bulletproof: If main image is missing, reload and re-apply border
+      const mainImage = fabricCanvasRef.current.getObjects().find((obj: any) => obj.id === 'mainImage');
+      if (mainImage) {
+        setIsImageLoaded(true);
+      } else {
+        // Extract border info from prevState
+        const borderInfo = extractBorderFromJSON(prevState);
+        if (currentImages[selectedImageIndex]) {
+          loadImageToCanvas(currentImages[selectedImageIndex]).then(() => {
+            // Re-apply border if needed
+            if (borderInfo && borderInfo.type !== 'none') {
+              setBorderColor(borderInfo.color);
+              setBorderWidth(borderInfo.width);
+              applyBorder(borderInfo.type);
+            }
+          });
+        } else {
+          setIsImageLoaded(false);
+        }
+      }
     });
   };
 
@@ -1247,28 +1367,35 @@ export function PhotoEditor({
     if (redoStack.length === 0 || !fabricCanvasRef.current) return;
     const nextState = redoStack[redoStack.length - 1];
     setRedoStack(redoStack.slice(0, -1));
-    setUndoStack(u => [...u, fabricCanvasRef.current!.toJSON()]);
+    const currentState = JSON.parse(JSON.stringify(fabricCanvasRef.current.toJSON()));
+    setUndoStack(u => [...u, currentState]);
+    console.log('Redo: loading nextState', nextState);
     fabricCanvasRef.current.loadFromJSON(nextState, () => {
       fabricCanvasRef.current.renderAll();
       syncToolStateWithCanvas();
+      // Bulletproof: If main image is missing, reload and re-apply border
+      const mainImage = fabricCanvasRef.current.getObjects().find((obj: any) => obj.id === 'mainImage');
+      const borderObj = fabricCanvasRef.current.getObjects().find((obj: any) => obj.id === 'border');
+      console.log('After redo: mainImage present?', !!mainImage, 'border present?', !!borderObj);
+      if (mainImage) {
+        setIsImageLoaded(true);
+      } else {
+        // Extract border info from nextState
+        const borderInfo = extractBorderFromJSON(nextState);
+        if (currentImages[selectedImageIndex]) {
+          loadImageToCanvas(currentImages[selectedImageIndex]).then(() => {
+            // Re-apply border if needed
+            if (borderInfo && borderInfo.type !== 'none') {
+              setBorderColor(borderInfo.color);
+              setBorderWidth(borderInfo.width);
+              applyBorder(borderInfo.type);
+            }
+          });
+        } else {
+          setIsImageLoaded(false);
+        }
+      }
     });
-  };
-
-  // Helper to sync React tool state with canvas objects
-  const syncToolStateWithCanvas = () => {
-    const canvas = fabricCanvasRef.current;
-    if (!canvas) return;
-    // Border
-    const hasBorder = canvas.getObjects().some((obj: any) => obj.id === 'border');
-    setSelectedBorder(hasBorder ? 'solid' : 'none');
-    // Frame
-    const hasFrame = canvas.getObjects().some((obj: any) => obj.id === 'frame');
-    setSelectedFrame(hasFrame ? 'classic' : 'none');
-    // Filter (not easily detectable, so reset to 'none')
-    setSelectedFilter('none');
-    // Cropping
-    const hasCrop = canvas.getObjects().some((obj: any) => obj.id === 'cropRect');
-    setIsCropping(hasCrop);
   };
 
   if (!fabricLoaded) {
@@ -1574,11 +1701,12 @@ export function PhotoEditor({
                                 <Input
                                   type="range"
                                   min="1"
-                                  max="50"
-                                  value={borderWidth}
+                                  max="30"
+                                  value={Math.max(1, Math.min(30, borderWidth))}
                                   onChange={(e) => {
-                                    setBorderWidth(Number(e.target.value));
-                                    if (selectedBorder !== 'none') {
+                                    const newWidth = Math.max(1, Math.min(30, Number(e.target.value)));
+                                    setBorderWidth(newWidth);
+                                    if (selectedBorder && selectedBorder !== 'none') {
                                       applyBorder(selectedBorder);
                                     }
                                   }}
@@ -1593,8 +1721,9 @@ export function PhotoEditor({
                                   type="color"
                                   value={borderColor}
                                   onChange={(e) => {
-                                    setBorderColor(e.target.value);
-                                    if (selectedBorder !== 'none') {
+                                    const newColor = e.target.value;
+                                    setBorderColor(newColor);
+                                    if (selectedBorder && selectedBorder !== 'none') {
                                       applyBorder(selectedBorder);
                                     }
                                   }}
@@ -1751,11 +1880,12 @@ export function PhotoEditor({
                 <label className="text-sm font-medium mb-1">Frame Size: {frameSize}px</label>
                 <Input
                   type="range"
-                  min="-50"
-                  max="100"
-                  value={frameSize}
+                  min="1"
+                  max="30"
+                  value={Math.max(1, Math.min(30, frameSize))}
                   onChange={e => {
-                    setFrameSize(Number(e.target.value));
+                    const newSize = Math.max(1, Math.min(30, Number(e.target.value)));
+                    setFrameSize(newSize);
                     if (selectedFrame !== 'none') {
                       applyFrame(selectedFrame);
                     }
