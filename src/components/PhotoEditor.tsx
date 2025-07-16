@@ -437,10 +437,8 @@ export function PhotoEditor({
 
             originalImageRef.current = newImg;
             setIsCropping(false);
-            // Auto-hug: re-apply border if a style is selected
-            if (selectedBorder && selectedBorder !== 'none') {
-              applyBorder(selectedBorder);
-            }
+            setSelectedBorder('none'); // Reset border after crop
+
             // After applying crop, save the image
             setTimeout(() => {
               const finalDataURL = canvas.toDataURL({
@@ -473,55 +471,27 @@ export function PhotoEditor({
 
     // Normal save functionality
     try {
-      // Find bounding box of main image and border
-      const canvas = fabricCanvasRef.current;
-      const mainImage = canvas.getObjects().find((obj: any) => obj.id === 'mainImage');
-      const borderObj = canvas.getObjects().find((obj: any) => obj.id === 'border');
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-      [mainImage, borderObj].forEach(obj => {
-        if (obj) {
-          const bounds = obj.getBoundingRect(true);
-          minX = Math.min(minX, bounds.left);
-          minY = Math.min(minY, bounds.top);
-          maxX = Math.max(maxX, bounds.left + bounds.width);
-          maxY = Math.max(maxY, bounds.top + bounds.height);
-        }
+      const dataURL = canvas.toDataURL({
+        format: "png",
+        quality: 1,
       });
-      if (minX !== Infinity && minY !== Infinity && maxX !== -Infinity && maxY !== -Infinity) {
-        // Export only the bounding box area
-        const dataURL = canvas.toDataURL({
-          format: "png",
-          quality: 1,
-          left: minX,
-          top: minY,
-          width: maxX - minX,
-          height: maxY - minY
-        });
-        setCurrentImages(prev => {
-          const newImages = [...prev];
-          newImages[selectedImageIndex] = dataURL;
-          return newImages;
-        });
-        setCanvasStates(prev => ({ ...prev, [selectedImageIndex]: canvas.toJSON() }));
-        onSave(session.id, selectedImageIndex, dataURL);
-        setShowSaveDialog(true);
-        setEditedImages(prev => new Set(prev).add(selectedImageIndex));
-      } else {
-        // Fallback to full canvas export
-        const dataURL = canvas.toDataURL({
-          format: "png",
-          quality: 1,
-        });
-        setCurrentImages(prev => {
-          const newImages = [...prev];
-          newImages[selectedImageIndex] = dataURL;
-          return newImages;
-        });
-        setCanvasStates(prev => ({ ...prev, [selectedImageIndex]: canvas.toJSON() }));
-        onSave(session.id, selectedImageIndex, dataURL);
-        setShowSaveDialog(true);
-        setEditedImages(prev => new Set(prev).add(selectedImageIndex));
-      }
+
+      // Update local currentImages state immediately
+      setCurrentImages(prev => {
+        const newImages = [...prev];
+        newImages[selectedImageIndex] = dataURL;
+        return newImages;
+      });
+
+      // Save canvas state for this image
+      setCanvasStates(prev => ({ ...prev, [selectedImageIndex]: canvas.toJSON() }));
+
+      // Call the parent's save handler
+      onSave(session.id, selectedImageIndex, dataURL);
+      setShowSaveDialog(true);
+      
+      // Mark this image as edited
+      setEditedImages(prev => new Set(prev).add(selectedImageIndex));
     } catch (error) {
       console.error('Save failed:', error);
       alert('Save failed due to image security restrictions.');
@@ -935,8 +905,8 @@ export function PhotoEditor({
           fill: '#8B4513',
           stroke: '#654321',
           strokeWidth: 2,
-          selectable: false,
-          evented: false,
+          selectable: true, // Make frame movable/resizable
+          evented: true,    // Make frame movable/resizable
           id: 'frame'
         });
         break;
@@ -949,8 +919,8 @@ export function PhotoEditor({
           fill: '#2c3e50',
           stroke: '#34495e',
           strokeWidth: 1,
-          selectable: false,
-          evented: false,
+          selectable: true, // Make frame movable/resizable
+          evented: true,    // Make frame movable/resizable
           id: 'frame'
         });
         break;
@@ -963,8 +933,8 @@ export function PhotoEditor({
           fill: '#d4af37',
           stroke: '#b8860b',
           strokeWidth: 3,
-          selectable: false,
-          evented: false,
+          selectable: true, // Make frame movable/resizable
+          evented: true,    // Make frame movable/resizable
           id: 'frame'
         });
         break;
@@ -977,8 +947,8 @@ export function PhotoEditor({
           fill: '#ffffff',
           stroke: '#cccccc',
           strokeWidth: 1,
-          selectable: false,
-          evented: false,
+          selectable: true, // Make frame movable/resizable
+          evented: true,    // Make frame movable/resizable
           id: 'frame'
         });
         break;
@@ -991,8 +961,8 @@ export function PhotoEditor({
           fill: '#ffd700',
           stroke: '#ff8c00',
           strokeWidth: 4,
-          selectable: false,
-          evented: false,
+          selectable: true, // Make frame movable/resizable
+          evented: true,    // Make frame movable/resizable
           id: 'frame'
         });
         break;
@@ -1068,8 +1038,8 @@ export function PhotoEditor({
       strokeDashArray: strokeDashArray,
       rx: borderType === 'rounded' ? 10 : 0,
       ry: borderType === 'rounded' ? 10 : 0,
-      selectable: false, // Auto-hug: not movable
-      evented: false,    // Auto-hug: not interactive
+      selectable: true, // Make border movable/resizable
+      evented: true,    // Make border movable/resizable
       id: 'border'
     });
 
@@ -1701,13 +1671,18 @@ export function PhotoEditor({
                                 <Input
                                   type="range"
                                   min="1"
-                                  max="30"
-                                  value={Math.max(1, Math.min(30, borderWidth))}
+                                  max="50"
+                                  value={borderWidth}
                                   onChange={(e) => {
-                                    const newWidth = Math.max(1, Math.min(30, Number(e.target.value)));
-                                    setBorderWidth(newWidth);
-                                    if (selectedBorder && selectedBorder !== 'none') {
-                                      applyBorder(selectedBorder);
+                                    setBorderWidth(Number(e.target.value));
+                                    // Update border object if present and selectable
+                                    const canvas = fabricCanvasRef.current;
+                                    if (canvas) {
+                                      const borderObj = canvas.getObjects().find((obj: any) => obj.id === 'border');
+                                      if (borderObj) {
+                                        borderObj.set({ strokeWidth: Number(e.target.value) });
+                                        canvas.renderAll();
+                                      }
                                     }
                                   }}
                                   className="w-full"
@@ -1721,17 +1696,22 @@ export function PhotoEditor({
                                   type="color"
                                   value={borderColor}
                                   onChange={(e) => {
-                                    const newColor = e.target.value;
-                                    setBorderColor(newColor);
-                                    if (selectedBorder && selectedBorder !== 'none') {
-                                      applyBorder(selectedBorder);
-                                    }
+                                    setBorderColor(e.target.value);
                                   }}
                                   className="w-full h-10"
                                   disabled={!isImageLoaded}
                                 />
                               </div>
                             </div>
+                          )}
+                          {selectedBorder !== 'none' && (
+                            <Button
+                              className="w-full mt-2"
+                              onClick={() => applyBorder(selectedBorder)}
+                              disabled={!isImageLoaded}
+                            >
+                              Apply Border Changes
+                            </Button>
                           )}
                         </div>
                       )}
@@ -1880,12 +1860,11 @@ export function PhotoEditor({
                 <label className="text-sm font-medium mb-1">Frame Size: {frameSize}px</label>
                 <Input
                   type="range"
-                  min="1"
-                  max="30"
-                  value={Math.max(1, Math.min(30, frameSize))}
+                  min="-50"
+                  max="100"
+                  value={frameSize}
                   onChange={e => {
-                    const newSize = Math.max(1, Math.min(30, Number(e.target.value)));
-                    setFrameSize(newSize);
+                    setFrameSize(Number(e.target.value));
                     if (selectedFrame !== 'none') {
                       applyFrame(selectedFrame);
                     }
