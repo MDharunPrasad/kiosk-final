@@ -11,8 +11,34 @@ import {
   Save,
   Plus,
   Minus,
-  Check
+  Check,
+  RotateCw,
+  RotateCcw,
+  Settings,
+  Type,
+  Image as ImageIcon,
+  ChevronDown,
+  ChevronRight,
+  Filter
 } from "lucide-react";
+// Import React Icons for filters and frames
+import { 
+  FaRegCircle, 
+  FaSquare, 
+  FaRegSquare, 
+  FaBorderAll,
+  FaPalette,
+  FaEye,
+  FaFire,
+  FaSnowflake,
+  FaSun,
+  FaMoon,
+  FaGem,
+  FaImage,
+  FaCamera,
+  FaDesktop,
+  FaMobile
+} from 'react-icons/fa';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,7 +48,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { fabric } from 'fabric';
+import { HexColorPicker } from "react-colorful";
+
+// Dynamic import for fabric
+let fabric: any;
 
 interface Session {
   id: string;
@@ -37,287 +66,670 @@ interface Session {
   };
   status: "pending" | "ready" | "completed";
   printCount?: number;
+  editedImages?: number[];
+  originalImages?: string[];
 }
 
 interface PhotoEditorProps {
   session: Session;
   onClose: () => void;
-  // Accepts either (sessionId, imageIndex, dataURL) or (sessionId, imagesArray)
-  onSave: (sessionId: string, arg1: number | string[], arg2?: string) => void;
+  onSave: (sessionId: string, imageIndex: number, editedImageUrl: string) => void;
   onDeleteImage?: (sessionId: string, imageIndex: number) => void;
+  initialSelectedIndex?: number;
 }
 
-export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEditorProps) {
+export function PhotoEditor({ 
+  session, 
+  onClose, 
+  onSave, 
+  onDeleteImage, 
+  initialSelectedIndex = 0 
+}: PhotoEditorProps) {
+  // Canvas and fabric refs
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fabricCanvasRef = useRef<any>(null);
   const originalImageRef = useRef<any>(null);
+  const watermarkInputRef = useRef<HTMLInputElement>(null);
+
+  // Core state variables - Make sure these are declared at the top
   const [fabricLoaded, setFabricLoaded] = useState(false);
-  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-  const [activeTool, setActiveTool] = useState<string>("select");
+  const [selectedImageIndex, setSelectedImageIndex] = useState(initialSelectedIndex); // This line must be present
+  const [activeTool, setActiveTool] = useState<string>("");
+  const [isImageLoaded, setIsImageLoaded] = useState(false);
+  const [currentImages, setCurrentImages] = useState<string[]>(session.images);
+  const [editedImages, setEditedImages] = useState<Set<number>>(
+    new Set(session.editedImages || [])
+  );
+
+  // Adjustment state
   const [brightness, setBrightness] = useState(0);
   const [contrast, setContrast] = useState(0);
   const [saturation, setSaturation] = useState(0);
+
+  // Tool state
   const [isCropping, setIsCropping] = useState(false);
   const [selectedFrame, setSelectedFrame] = useState<string>("none");
   const [selectedBorder, setSelectedBorder] = useState<string>("none");
+  const [selectedFilter, setSelectedFilter] = useState<string>("none");
   const [borderWidth, setBorderWidth] = useState(10);
   const [borderColor, setBorderColor] = useState("#000000");
-  const [autoSaveTimeout, setAutoSaveTimeout] = useState<NodeJS.Timeout | null>(null);
-  const [isImageLoaded, setIsImageLoaded] = useState(false);
+
+  // Dialog state
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [imageToDelete, setImageToDelete] = useState<number | null>(null);
-  const [currentImages, setCurrentImages] = useState<string[]>(session.images);
-  const [editedImages, setEditedImages] = useState<Set<number>>(new Set());
-  const [imageLoadError, setImageLoadError] = useState<string | null>(null);
+  const [autoSaveTimeout, setAutoSaveTimeout] = useState<NodeJS.Timeout | null>(null);
+  
+  // Watermark states
+  const [watermarkText, setWatermarkText] = useState("");
+  const [watermarkColor, setWatermarkColor] = useState("#000000");
+  const [watermarkSize, setWatermarkSize] = useState(20);
+  const [watermarkOpacity, setWatermarkOpacity] = useState(0.5);
+  const [watermarkImageOpacity, setWatermarkImageOpacity] = useState(0.5);
 
-  // Add per-image edit state
-  const [imageEditStates, setImageEditStates] = useState(() => session.images.map(() => ({
-    brightness: 0,
-    contrast: 0,
-    saturation: 0,
-    border: 'none',
-    borderWidth: 10,
-    borderColor: '#000000',
-    frame: 'none',
-  })));
+  // Filter options with React Icons
+  const filterOptions = [
+    { value: "none", label: "None", icon: FaRegCircle, color: "#ffffff" },
+    { value: "blackwhite", label: "Black & White", icon: FaRegSquare, color: "#808080" },
+    { value: "sepia", label: "Sepia", icon: FaEye, color: "#8B4513" },
+    { value: "cyberpunk", label: "Cyberpunk", icon: FaGem, color: "#8A2BE2" },
+    { value: "vivid", label: "Vivid", icon: FaPalette, color: "#FF6B6B" },
+    { value: "warm", label: "Warm", icon: FaSun, color: "#FFA500" },
+    { value: "cool", label: "Cool", icon: FaSnowflake, color: "#4169E1" },
+    { value: "hdr", label: "HDR", icon: FaFire, color: "#FFD700" }
+  ];
 
-  // Save current edit state before switching images
-  const saveCurrentEditState = () => {
-    setImageEditStates((prev) => {
-      const newStates = [...prev];
-      newStates[selectedImageIndex] = {
-        brightness,
-        contrast,
-        saturation,
-        border: selectedBorder,
-        borderWidth,
-        borderColor,
-        frame: selectedFrame,
-      };
-      return newStates;
-    });
-  };
+  // Frame options with React Icons
+  const frameOptions = [
+    { value: "none", label: "None", icon: FaRegSquare },
+    { value: "classic", label: "Classic", icon: FaSquare },
+    { value: "modern", label: "Modern", icon: FaDesktop },
+    { value: "vintage", label: "Vintage", icon: FaCamera },
+    { value: "polaroid", label: "Polaroid", icon: FaImage },
+    { value: "ornate", label: "Ornate", icon: FaGem }
+  ];
 
-  // Restore edit state when switching images
-  const restoreEditState = (index: number) => {
-    const state = imageEditStates[index];
-    if (!state) return;
-    setBrightness(state.brightness);
-    setContrast(state.contrast);
-    setSaturation(state.saturation);
-    setSelectedBorder(state.border);
-    setBorderWidth(state.borderWidth);
-    setBorderColor(state.borderColor);
-    setSelectedFrame(state.frame);
-  };
+  // Border options with React Icons
+  const borderOptions = [
+    { value: "none", label: "None", icon: FaRegCircle },
+    { value: "solid", label: "Solid", icon: FaBorderAll },
+    { value: "dashed", label: "Dashed", icon: FaSquare },
+    { value: "dotted", label: "Dotted", icon: Circle },
+    // { value: "double", label: "Double", icon: FaDesktop },
+    { value: "rounded", label: "Rounded", icon: FaRegCircle }
+  ];
 
-  // On image index change, save previous and restore new
+  // Tool categories
+  const toolCategories = [
+    { id: "crop", label: "Crop", icon: Crop },
+    { id: "adjustment", label: "Adjustment", icon: Settings },
+    { id: "filter", label: "Filter", icon: Filter },
+    { id: "frame", label: "Frame", icon: Square },
+    { id: "border", label: "Border", icon: Circle },
+    { id: "watermark", label: "Watermark", icon: Type }
+  ];
+
+  // Store per-image canvas state
+  const [canvasStates, setCanvasStates] = useState<{ [index: number]: any }>({});
+
+  // Undo/Redo stacks
+  const [undoStack, setUndoStack] = useState<any[]>([]);
+  const [redoStack, setRedoStack] = useState<any[]>([]);
+
+  // Track previous image index for auto-save
+  const prevImageIndexRef = useRef(selectedImageIndex);
+
+  // Auto-save canvas state before switching images, and auto-restore on switch
   useEffect(() => {
-    if (imageEditStates.length !== currentImages.length) {
-      setImageEditStates(currentImages.map(() => ({
-        brightness: 0,
-        contrast: 0,
-        saturation: 0,
-        border: 'none',
-        borderWidth: 10,
-        borderColor: '#000000',
-        frame: 'none',
-      })));
-      return;
+    const prevIndex = prevImageIndexRef.current;
+    if (fabricCanvasRef.current && prevIndex !== selectedImageIndex) {
+      // Save current canvas state for previous image (after all edits)
+      setCanvasStates(prev => ({ ...prev, [prevIndex]: fabricCanvasRef.current!.toJSON() }));
     }
-    saveCurrentEditState();
-    restoreEditState(selectedImageIndex);
-    // eslint-disable-next-line
-  }, [selectedImageIndex]);
-
-  // Update edit state on each edit
-  const updateEditState = (partial: Partial<typeof imageEditStates[0]>) => {
-    setImageEditStates((prev) => {
-      const newStates = [...prev];
-      newStates[selectedImageIndex] = { ...newStates[selectedImageIndex], ...partial };
-      return newStates;
-    });
-  };
-
-  // Update edit functions to call updateEditState
-  const applyBrightness = (value: number) => {
-    setBrightness(value);
-    applyImageFilter('brightness', value / 100);
-    updateEditState({ brightness: value });
-    if (value !== 0) {
-      setEditedImages(prev => new Set(prev).add(selectedImageIndex));
+    prevImageIndexRef.current = selectedImageIndex;
+    // On switch, restore state if exists (and only restore, do not re-apply edits)
+    if (fabricCanvasRef.current && canvasStates[selectedImageIndex]) {
+      fabricCanvasRef.current.loadFromJSON(canvasStates[selectedImageIndex], () => {
+        fabricCanvasRef.current.renderAll();
+      });
+    } else if (fabricCanvasRef.current && currentImages[selectedImageIndex]) {
+      loadImageToCanvas(currentImages[selectedImageIndex]);
     }
-  };
-  const applyContrast = (value: number) => {
-    setContrast(value);
-    applyImageFilter('contrast', value / 100);
-    updateEditState({ contrast: value });
-    if (value !== 0) {
-      setEditedImages(prev => new Set(prev).add(selectedImageIndex));
+    setUndoStack([]);
+    setRedoStack([]);
+  }, [selectedImageIndex, canvasStates, currentImages]);
+
+  // Push current state to undo stack only if different from last
+  const pushUndo = useCallback(() => {
+    if (fabricCanvasRef.current) {
+      const current = fabricCanvasRef.current.toJSON();
+      if (undoStack.length === 0 || JSON.stringify(undoStack[undoStack.length - 1]) !== JSON.stringify(current)) {
+        setUndoStack(prev => [...prev, current]);
+        setRedoStack([]); // Clear redo stack on new action
+      }
     }
-  };
-  const applySaturation = (value: number) => {
-    setSaturation(value);
-    applyImageFilter('saturation', value / 100);
-    updateEditState({ saturation: value });
-    if (value !== 0) {
-      setEditedImages(prev => new Set(prev).add(selectedImageIndex));
+  }, [undoStack]);
+
+  // Load fabric.js dynamically
+  useEffect(() => {
+    const loadFabric = async () => {
+      try {
+        const fabricModule = await import('fabric');
+        fabric = fabricModule.fabric || fabricModule.default || fabricModule;
+        setFabricLoaded(true);
+      } catch (error) {
+        console.error('Failed to load fabric.js:', error);
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js';
+        script.onload = () => {
+          fabric = (window as any).fabric;
+          setFabricLoaded(true);
+        };
+        document.head.appendChild(script);
+      }
+    };
+
+    loadFabric();
+  }, []);
+
+  // Initialize canvas
+  useEffect(() => {
+    if (canvasRef.current && fabricLoaded && fabric) {
+      const canvas = new fabric.Canvas(canvasRef.current, {
+        width: 800,
+        height: 600,
+        backgroundColor: "#ffffff",
+      });
+
+      fabricCanvasRef.current = canvas;
+
+      if (currentImages.length > 0) {
+        loadImageToCanvas(currentImages[selectedImageIndex]);
+      }
+
+      return () => {
+        canvas.dispose();
+        if (autoSaveTimeout) {
+          clearTimeout(autoSaveTimeout);
+        }
+      };
     }
-  };
-  const applyBorder = (borderType: string) => {
-    const canvas = fabricCanvasRef.current;
-    if (!canvas || !fabric || !isImageLoaded) return;
+  }, [fabricLoaded]);
 
-    const existingBorder = canvas.getObjects().find((obj: any) => obj.id === 'border');
-    if (existingBorder) {
-      canvas.remove(existingBorder);
+  // Update currentImages state when session.images changes
+  useEffect(() => {
+    setCurrentImages(session.images);
+    setEditedImages(new Set(session.editedImages || []));
+  }, [session.images, session.editedImages]);
+
+  // Load image when selectedImageIndex changes
+  useEffect(() => {
+    if (fabricCanvasRef.current && currentImages[selectedImageIndex] && fabricLoaded) {
+      loadImageToCanvas(currentImages[selectedImageIndex]);
     }
+  }, [selectedImageIndex, fabricLoaded, currentImages]);
 
-    if (borderType === 'none') {
-      setSelectedBorder('none');
-      canvas.renderAll();
-      return;
-    }
+  // Convert image to base64 to avoid CORS issues
+  const convertImageToBase64 = (imageUrl: string): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      if (imageUrl.startsWith('data:')) {
+        resolve(imageUrl);
+        return;
+      }
 
-    const mainImage = canvas.getObjects().find((obj: any) => obj.id === 'mainImage');
-    if (!mainImage) return;
-
-    const imageBounds = mainImage.getBoundingRect();
-    let strokeDashArray: number[] = [];
-
-    switch (borderType) {
-      case 'solid':
-        strokeDashArray = [];
-        break;
-      case 'dashed':
-        strokeDashArray = [15, 15];
-        break;
-      case 'dotted':
-        strokeDashArray = [3, 6];
-        break;
-      case 'double':
-        strokeDashArray = [];
-        break;
-    }
-
-    const border = new fabric.Rect({
-      left: imageBounds.left - borderWidth/2,
-      top: imageBounds.top - borderWidth/2,
-      width: imageBounds.width + borderWidth,
-      height: imageBounds.height + borderWidth,
-      fill: 'transparent',
-      stroke: borderColor,
-      strokeWidth: borderWidth,
-      strokeDashArray: strokeDashArray,
-      selectable: false,
-      id: 'border'
-    });
-
-    canvas.add(border);
-    canvas.renderAll();
-    setSelectedBorder(borderType);
-    updateEditState({ border: borderType });
-    
-    // Mark image as edited
-    setEditedImages(prev => new Set(prev).add(selectedImageIndex));
-  };
-
-  const applyFrame = (frameType: string) => {
-    const canvas = fabricCanvasRef.current;
-    if (!canvas || !fabric || !isImageLoaded) return;
-
-    const existingFrame = canvas.getObjects().find((obj: any) => obj.id === 'frame');
-    if (existingFrame) {
-      canvas.remove(existingFrame);
-    }
-
-    if (frameType === 'none') {
-      setSelectedFrame('none');
-      canvas.renderAll();
-      return;
-    }
-
-    const mainImage = canvas.getObjects().find((obj: any) => obj.id === 'mainImage');
-    if (!mainImage) return;
-
-    let frame;
-    const frameSize = 20;
-    const imageBounds = mainImage.getBoundingRect();
-
-    switch (frameType) {
-      case 'classic':
-        frame = new fabric.Rect({
-          left: imageBounds.left - frameSize,
-          top: imageBounds.top - frameSize,
-          width: imageBounds.width + frameSize * 2,
-          height: imageBounds.height + frameSize * 2,
-          fill: '#8B4513',
-          stroke: '#654321',
-          strokeWidth: 2,
-          selectable: false,
-          id: 'frame'
-        });
-        break;
-      case 'modern':
-        frame = new fabric.Rect({
-          left: imageBounds.left - frameSize/2,
-          top: imageBounds.top - frameSize/2,
-          width: imageBounds.width + frameSize,
-          height: imageBounds.height + frameSize,
-          fill: 'transparent',
-          stroke: '#333333',
-          strokeWidth: frameSize,
-          selectable: false,
-          id: 'frame'
-        });
-        break;
-      case 'vintage':
-        frame = new fabric.Rect({
-          left: imageBounds.left - frameSize,
-          top: imageBounds.top - frameSize,
-          width: imageBounds.width + frameSize * 2,
-          height: imageBounds.height + frameSize * 2,
-          fill: '#D2691E',
-          stroke: '#A0522D',
-          strokeWidth: 3,
-          selectable: false,
-          id: 'frame',
-          shadow: new fabric.Shadow({
-            color: 'rgba(0,0,0,0.3)',
-            blur: 10,
-            offsetX: 5,
-            offsetY: 5
-          })
-        });
-        break;
-      case 'polaroid':
-        frame = new fabric.Rect({
-          left: imageBounds.left - frameSize,
-          top: imageBounds.top - frameSize,
-          width: imageBounds.width + frameSize * 2,
-          height: imageBounds.height + frameSize * 3,
-          fill: '#FFFFFF',
-          stroke: '#E5E5E5',
-          strokeWidth: 1,
-          selectable: false,
-          id: 'frame'
-        });
-        break;
-    }
-
-    if (frame) {
-      canvas.add(frame);
-      canvas.sendToBack(frame);
-      canvas.renderAll();
-      setSelectedFrame(frameType);
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
       
-      // Mark image as edited
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        canvas.width = img.width;
+        canvas.height = img.height;
+        
+        if (ctx) {
+          ctx.drawImage(img, 0, 0);
+          try {
+            const base64 = canvas.toDataURL('image/png');
+            resolve(base64);
+          } catch (error) {
+            console.warn('CORS issue detected, using original URL:', error);
+            resolve(imageUrl);
+          }
+        } else {
+          reject(new Error('Could not get canvas context'));
+        }
+      };
+      
+      img.onerror = () => {
+        console.warn('Failed to load image for conversion, using original URL');
+        resolve(imageUrl);
+      };
+      
+      img.src = imageUrl;
+    });
+  };
+
+  const loadImageToCanvas = async (imageUrl: string) => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas || !fabric) return;
+
+    setIsImageLoaded(false);
+    
+    try {
+      const base64Image = await convertImageToBase64(imageUrl);
+      
+      fabric.Image.fromURL(base64Image, (img: any) => {
+        if (!img) {
+          console.error('Failed to load image');
+          return;
+        }
+
+        canvas.clear();
+        
+        const canvasWidth = canvas.getWidth();
+        const canvasHeight = canvas.getHeight();
+        const scale = Math.min(canvasWidth / img.width!, canvasHeight / img.height!) * 0.8;
+        
+        img.scale(scale);
+        img.set({
+          left: canvasWidth / 2,
+          top: canvasHeight / 2,
+          originX: 'center',
+          originY: 'center'
+        });
+        
+        img.setCoords();
+        img.selectable = false;
+        img.evented = false;
+        img.id = 'mainImage';
+        
+        originalImageRef.current = img;
+        
+        canvas.add(img);
+        canvas.sendToBack(img);
+        canvas.renderAll();
+        
+        setIsImageLoaded(true);
+        
+        setBrightness(0);
+        setContrast(0);
+        setSaturation(0);
+        setSelectedFrame('none');
+        setSelectedBorder('none');
+        setSelectedFilter('none');
+        setIsCropping(false);
+      }, { crossOrigin: 'anonymous' });
+      
+    } catch (error) {
+      console.error('Error loading image:', error);
+      setIsImageLoaded(false);
+    }
+  };
+
+  // Updated save functions
+  const saveCurrentImage = () => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas || !isImageLoaded) return;
+
+    // If we're in cropping mode, apply the crop first
+    if (isCropping) {
+      const cropRect = canvas.getObjects().find((obj: any) => obj.id === 'cropRect');
+      const mainImage = canvas.getObjects().find((obj: any) => obj.id === 'mainImage');
+
+      if (cropRect && mainImage) {
+        const cropBounds = cropRect.getBoundingRect();
+        
+        const tempCanvas = document.createElement('canvas');
+        const tempCtx = tempCanvas.getContext('2d');
+        
+        if (tempCtx) {
+          tempCanvas.width = cropBounds.width;
+          tempCanvas.height = cropBounds.height;
+          
+          cropRect.visible = false;
+          canvas.renderAll();
+          
+          const cleanCanvas = canvas.toCanvasElement();
+          
+          tempCtx.drawImage(
+            cleanCanvas,
+            cropBounds.left,
+            cropBounds.top,
+            cropBounds.width,
+            cropBounds.height,
+            0,
+            0,
+            cropBounds.width,
+            cropBounds.height
+          );
+          
+          const croppedDataURL = tempCanvas.toDataURL('image/png');
+          
+          fabric.Image.fromURL(croppedDataURL, (newImg: any) => {
+            canvas.clear();
+            
+            const canvasWidth = canvas.getWidth();
+            const canvasHeight = canvas.getHeight();
+            const newScale = Math.min(canvasWidth / newImg.width!, canvasHeight / newImg.height!) * 0.8;
+            
+            newImg.scale(newScale);
+            newImg.set({
+              left: canvasWidth / 2,
+              top: canvasHeight / 2,
+              originX: 'center',
+              originY: 'center',
+              selectable: false,
+              evented: false,
+              id: 'mainImage'
+            });
+            
+            canvas.add(newImg);
+            canvas.renderAll();
+            
+            originalImageRef.current = newImg;
+            setIsCropping(false);
+            
+            // After applying crop, save the image
+            setTimeout(() => {
+              const finalDataURL = canvas.toDataURL({
+                format: "png",
+                quality: 1,
+              });
+
+              // Update local currentImages state immediately
+              setCurrentImages(prev => {
+                const newImages = [...prev];
+                newImages[selectedImageIndex] = finalDataURL;
+                return newImages;
+              });
+
+              // Save canvas state for this image
+              setCanvasStates(prev => ({ ...prev, [selectedImageIndex]: canvas.toJSON() }));
+
+              // Call the parent's save handler
+              onSave(session.id, selectedImageIndex, finalDataURL);
+              setShowSaveDialog(true);
+              
+              // Mark this image as edited
+              setEditedImages(prev => new Set(prev).add(selectedImageIndex));
+            }, 100);
+          });
+          return;
+        }
+      }
+    }
+
+    // Normal save functionality
+    try {
+      const dataURL = canvas.toDataURL({
+        format: "png",
+        quality: 1,
+      });
+
+      // Update local currentImages state immediately
+      setCurrentImages(prev => {
+        const newImages = [...prev];
+        newImages[selectedImageIndex] = dataURL;
+        return newImages;
+      });
+
+      // Save canvas state for this image
+      setCanvasStates(prev => ({ ...prev, [selectedImageIndex]: canvas.toJSON() }));
+
+      // Call the parent's save handler
+      onSave(session.id, selectedImageIndex, dataURL);
+      setShowSaveDialog(true);
+      
+      // Mark this image as edited
       setEditedImages(prev => new Set(prev).add(selectedImageIndex));
+    } catch (error) {
+      console.error('Save failed:', error);
+      alert('Save failed due to image security restrictions.');
+    }
+  };
+
+  // Premium Save All: sequentially process and save each image with watermark/edits
+  const saveAllImages = async () => {
+    if (!fabricCanvasRef.current || !fabricLoaded) return;
+    const canvas = fabricCanvasRef.current;
+    const prevIndex = selectedImageIndex;
+    let updatedImages = [...currentImages];
+    setShowSaveDialog(true);
+    // Save current canvas state for the current image before batch export
+    setCanvasStates(prev => ({ ...prev, [selectedImageIndex]: canvas.toJSON() }));
+    for (let i = 0; i < currentImages.length; i++) {
+      if (canvasStates[i]) {
+        await new Promise(res => {
+          canvas.loadFromJSON(canvasStates[i], () => {
+            canvas.renderAll();
+            res(undefined);
+          });
+        });
+        await new Promise(res => setTimeout(res, 100));
+      } else {
+        await loadImageToCanvas(currentImages[i]);
+        await new Promise(res => setTimeout(res, 100));
+      }
+      // Re-apply current text watermark if present
+      if (watermarkText.trim() !== "") {
+        const existingText = canvas.getObjects().find((obj) => obj.id === 'textWatermark');
+        if (existingText) canvas.remove(existingText);
+        const textWatermark = new fabric.Text(watermarkText, {
+          left: canvas.getWidth() / 2,
+          top: canvas.getHeight() / 2,
+          fontFamily: 'Arial',
+          fontSize: watermarkSize,
+          fill: watermarkColor,
+          opacity: watermarkOpacity,
+          selectable: false,
+          evented: false,
+          id: 'textWatermark'
+        });
+        canvas.add(textWatermark);
+      }
+      // Re-apply current image watermark if present
+      const imageWatermarkObj = canvas.getObjects().find((obj) => obj.id === 'imageWatermark');
+      if (imageWatermarkObj && imageWatermarkObj.type === 'image' && imageWatermarkObj.getSrc) {
+        fabric.Image.fromURL(imageWatermarkObj.getSrc(), (img) => {
+          img.set({
+            left: canvas.getWidth() / 2,
+            top: canvas.getHeight() / 2,
+            opacity: watermarkImageOpacity,
+            selectable: false,
+            evented: false,
+            id: 'imageWatermark'
+          });
+          canvas.add(img);
+          canvas.renderAll();
+        });
+      }
+      canvas.renderAll();
+      await new Promise(res => setTimeout(res, 100));
+      const dataURL = canvas.toDataURL({ format: "png", quality: 1 });
+      updatedImages[i] = dataURL;
+      onSave(session.id, i, dataURL);
+    }
+    setCurrentImages(updatedImages);
+    setEditedImages(new Set(Array.from({ length: updatedImages.length }, (_, i) => i)));
+    setSelectedImageIndex(prevIndex);
+    setShowSaveDialog(false);
+    onClose();
+  };
+
+  const toggleTool = (toolId: string) => {
+    if (activeTool === toolId) {
+      setActiveTool("");
+    } else {
+      setActiveTool(toolId);
+    }
+  };
+
+  // Filter functions
+  const applyFilter = (filterType: string) => {
+    pushUndo();
+    const canvas = fabricCanvasRef.current;
+    if (!canvas || !fabric || !isImageLoaded) return;
+
+    const mainImage = canvas.getObjects().find((obj: any) => obj.id === 'mainImage');
+    if (!mainImage) return;
+
+    try {
+      const existingFilters = mainImage.filters || [];
+      const adjustmentFilters = existingFilters.filter((filter: any) => {
+        return (
+          (fabric.Image?.filters?.Brightness && filter instanceof fabric.Image.filters.Brightness) ||
+          (fabric.Image?.filters?.Contrast && filter instanceof fabric.Image.filters.Contrast) ||
+          (fabric.Image?.filters?.Saturation && filter instanceof fabric.Image.filters.Saturation)
+        );
+      });
+
+      if (filterType === 'none') {
+        mainImage.filters = adjustmentFilters;
+        mainImage.applyFilters();
+        canvas.renderAll();
+        setSelectedFilter('none');
+        return;
+      }
+
+      let newFilters = [...adjustmentFilters];
+
+      switch (filterType) {
+        case 'blackwhite':
+          if (fabric.Image?.filters?.Grayscale) {
+            newFilters.push(new fabric.Image.filters.Grayscale());
+          }
+          break;
+          
+        case 'sepia':
+          if (fabric.Image?.filters?.Sepia) {
+            newFilters.push(new fabric.Image.filters.Sepia());
+          }
+          break;
+          
+        case 'cyberpunk':
+          if (fabric.Image?.filters?.Contrast) {
+            newFilters = newFilters.filter(f => !(fabric.Image?.filters?.Contrast && f instanceof fabric.Image.filters.Contrast));
+            newFilters.push(new fabric.Image.filters.Contrast({ contrast: 0.3 }));
+          }
+          if (fabric.Image?.filters?.ColorMatrix) {
+            newFilters.push(new fabric.Image.filters.ColorMatrix({
+              matrix: [
+                1.2, 0, 0.8, 0, 0,
+                0, 0.8, 1.2, 0, 0,
+                0.8, 0, 1.2, 0, 0,
+                0, 0, 0, 1, 0
+              ]
+            }));
+          }
+          break;
+          
+        case 'vivid':
+          if (fabric.Image?.filters?.Saturation) {
+            newFilters = newFilters.filter(f => !(fabric.Image?.filters?.Saturation && f instanceof fabric.Image.filters.Saturation));
+            newFilters.push(new fabric.Image.filters.Saturation({ saturation: 0.4 }));
+          }
+          if (fabric.Image?.filters?.Contrast) {
+            newFilters = newFilters.filter(f => !(fabric.Image?.filters?.Contrast && f instanceof fabric.Image.filters.Contrast));
+            newFilters.push(new fabric.Image.filters.Contrast({ contrast: 0.2 }));
+          }
+          break;
+          
+        case 'warm':
+          if (fabric.Image?.filters?.ColorMatrix) {
+            newFilters.push(new fabric.Image.filters.ColorMatrix({
+              matrix: [
+                1.2, 0.1, 0, 0, 0,
+                0.1, 1.1, 0, 0, 0,
+                0, 0, 0.8, 0, 0,
+                0, 0, 0, 1, 0
+              ]
+            }));
+          }
+          break;
+          
+        case 'cool':
+          if (fabric.Image?.filters?.ColorMatrix) {
+            newFilters.push(new fabric.Image.filters.ColorMatrix({
+              matrix: [
+                0.8, 0, 0.1, 0, 0,
+                0, 0.9, 0.1, 0, 0,
+                0.1, 0.1, 1.2, 0, 0,
+                0, 0, 0, 1, 0
+              ]
+            }));
+          }
+          break;
+          
+        case 'hdr':
+          if (fabric.Image?.filters?.Gamma) {
+            newFilters.push(new fabric.Image.filters.Gamma({ 
+              gamma: [1, 0.8, 0.8] 
+            }));
+          }
+          if (fabric.Image?.filters?.Contrast) {
+            newFilters = newFilters.filter(f => !(fabric.Image?.filters?.Contrast && f instanceof fabric.Image.filters.Contrast));
+            newFilters.push(new fabric.Image.filters.Contrast({ contrast: 0.25 }));
+          }
+          if (fabric.Image?.filters?.Brightness) {
+            newFilters = newFilters.filter(f => !(fabric.Image?.filters?.Brightness && f instanceof fabric.Image.filters.Brightness));
+            newFilters.push(new fabric.Image.filters.Brightness({ brightness: 0.1 }));
+          }
+          break;
+      }
+
+      mainImage.filters = newFilters;
+      mainImage.applyFilters();
+      canvas.renderAll();
+      setSelectedFilter(filterType);
+      
+      if (filterType !== 'none') {
+        setEditedImages(prev => new Set(prev).add(selectedImageIndex));
+      }
+    } catch (error) {
+      console.error('Error applying filter:', error);
+      if (filterType === 'blackwhite') {
+        mainImage.filters = [new fabric.Image.filters.Grayscale()];
+        mainImage.applyFilters();
+        canvas.renderAll();
+        setSelectedFilter(filterType);
+      }
+    }
+  };
+
+  // Crop functions
+  const enableCropping = () => {
+    pushUndo();
+    const canvas = fabricCanvasRef.current;
+    if (!canvas || !fabric || !isImageLoaded) return;
+
+    setIsCropping(true);
+    const mainImage = canvas.getObjects().find((obj: any) => obj.id === 'mainImage');
+    
+    if (mainImage) {
+      const imageBounds = mainImage.getBoundingRect();
+      
+      const cropRect = new fabric.Rect({
+        left: imageBounds.left + imageBounds.width / 4,
+        top: imageBounds.top + imageBounds.height / 4,
+        width: imageBounds.width / 2,
+        height: imageBounds.height / 2,
+        fill: 'transparent',
+        stroke: '#009c00ff', // Changed from '#ff0000' to dark green
+        strokeWidth: 2,
+        strokeDashArray: [5, 5],
+        selectable: true,
+        id: 'cropRect'
+      });
+
+      canvas.add(cropRect);
+      canvas.setActiveObject(cropRect);
+      canvas.renderAll();
     }
   };
 
   const cancelCrop = () => {
+    pushUndo();
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
 
@@ -329,42 +741,83 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
     setIsCropping(false);
   };
 
-  const enableCropping = () => {
-    setIsCropping(true);
+  const rotateImage = (direction: 'left' | 'right') => {
+    pushUndo();
+    const canvas = fabricCanvasRef.current;
+    if (!canvas || !isImageLoaded) return;
+
+    const mainImage = canvas.getObjects().find((obj: any) => obj.id === 'mainImage');
+    if (mainImage) {
+      const currentAngle = mainImage.angle || 0;
+      const newAngle = direction === 'right' ? currentAngle + 90 : currentAngle - 90;
+      
+      mainImage.set('angle', newAngle);
+      canvas.renderAll();
+      
+      setEditedImages(prev => new Set(prev).add(selectedImageIndex));
+    }
   };
 
-  const adjustValue = (type: 'brightness' | 'contrast' | 'saturation', increment: boolean) => {
-    const step = 10;
-    let currentValue = 0;
-    let setter: (value: number) => void;
-    
-    switch (type) {
-      case 'brightness':
-        currentValue = brightness;
-        setter = setBrightness;
-        break;
-      case 'contrast':
-        currentValue = contrast;
-        setter = setContrast;
-        break;
-      case 'saturation':
-        currentValue = saturation;
-        setter = setSaturation;
-        break;
+  // Adjustment functions with increment/decrement
+  const adjustBrightness = (increment: boolean) => {
+    pushUndo();
+    const newValue = increment ? Math.min(brightness + 5, 100) : Math.max(brightness - 5, -100);
+    setBrightness(newValue);
+    applyImageFilter('brightness', newValue / 100);
+    if (newValue !== 0) {
+      setEditedImages(prev => new Set(prev).add(selectedImageIndex));
     }
-    
-    const newValue = increment 
-      ? Math.min(100, currentValue + step)
-      : Math.max(-100, currentValue - step);
-    
-    setter(newValue);
-    applyImageFilter(type, newValue / 100);
-    
-    // Mark image as edited
-    setEditedImages(prev => new Set(prev).add(selectedImageIndex));
+  };
+
+  const adjustContrast = (increment: boolean) => {
+    pushUndo();
+    const newValue = increment ? Math.min(contrast + 5, 100) : Math.max(contrast - 5, -100);
+    setContrast(newValue);
+    applyImageFilter('contrast', newValue / 100);
+    if (newValue !== 0) {
+      setEditedImages(prev => new Set(prev).add(selectedImageIndex));
+    }
+  };
+
+  const adjustSaturation = (increment: boolean) => {
+    pushUndo();
+    const newValue = increment ? Math.min(saturation + 5, 100) : Math.max(saturation - 5, -100);
+    setSaturation(newValue);
+    applyImageFilter('saturation', newValue / 100);
+    if (newValue !== 0) {
+      setEditedImages(prev => new Set(prev).add(selectedImageIndex));
+    }
+  };
+
+  const applyBrightness = (value: number) => {
+    pushUndo();
+    setBrightness(value);
+    applyImageFilter('brightness', value / 100);
+    if (value !== 0) {
+      setEditedImages(prev => new Set(prev).add(selectedImageIndex));
+    }
+  };
+
+  const applyContrast = (value: number) => {
+    pushUndo();
+    setContrast(value);
+    applyImageFilter('contrast', value / 100);
+    if (value !== 0) {
+      setEditedImages(prev => new Set(prev).add(selectedImageIndex));
+    }
+  };
+
+  const applySaturation = (value: number) => {
+    pushUndo();
+    setSaturation(value);
+    applyImageFilter('saturation', value / 100);
+    if (value !== 0) {
+      setEditedImages(prev => new Set(prev).add(selectedImageIndex));
+    }
   };
 
   const applyImageFilter = (filterType: string, value: number) => {
+    pushUndo();
     const canvas = fabricCanvasRef.current;
     if (!canvas || !fabric || !isImageLoaded) return;
 
@@ -374,45 +827,312 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
     const existingFilters = mainImage.filters || [];
     const otherFilters = existingFilters.filter((filter: any) => {
       return !(
-        (filterType === 'brightness' && filter instanceof fabric.Image.filters.Brightness) ||
-        (filterType === 'contrast' && filter instanceof fabric.Image.filters.Contrast) ||
-        (filterType === 'saturation' && filter instanceof fabric.Image.filters.Saturation)
+        (filterType === 'brightness' && fabric.Image?.filters?.Brightness && filter instanceof fabric.Image.filters.Brightness) ||
+        (filterType === 'contrast' && fabric.Image?.filters?.Contrast && filter instanceof fabric.Image.filters.Contrast) ||
+        (filterType === 'saturation' && fabric.Image?.filters?.Saturation && filter instanceof fabric.Image.filters.Saturation)
       );
     });
 
     let newFilter;
     switch (filterType) {
       case 'brightness':
-        newFilter = new fabric.Image.filters.Brightness({ brightness: value });
+        if (fabric.Image?.filters?.Brightness && value !== 0) {
+          newFilter = new fabric.Image.filters.Brightness({ brightness: value });
+        }
         break;
       case 'contrast':
-        newFilter = new fabric.Image.filters.Contrast({ contrast: value });
+        if (fabric.Image?.filters?.Contrast && value !== 0) {
+          newFilter = new fabric.Image.filters.Contrast({ contrast: value });
+        }
         break;
       case 'saturation':
-        newFilter = new fabric.Image.filters.Saturation({ saturation: value });
+        if (fabric.Image?.filters?.Saturation && value !== 0) {
+          newFilter = new fabric.Image.filters.Saturation({ saturation: value });
+        }
         break;
     }
 
-    if (newFilter) {
-      mainImage.filters = [...otherFilters, newFilter];
-      mainImage.applyFilters();
-      canvas.renderAll();
+    mainImage.filters = newFilter ? [...otherFilters, newFilter] : otherFilters;
+    mainImage.applyFilters();
+    canvas.renderAll();
+    
+    // If we have a selected filter, reapply it to maintain the artistic effect
+    if (selectedFilter && selectedFilter !== 'none') {
+      setTimeout(() => applyFilter(selectedFilter), 50);
     }
   };
 
+  // Frame functions (improved centering)
+  const applyFrame = (frameType: string) => {
+    pushUndo();
+    const canvas = fabricCanvasRef.current;
+    if (!canvas || !fabric || !isImageLoaded) return;
+
+    // Remove existing frame(s)
+    canvas.getObjects().filter((obj: any) => obj.id === 'frame').forEach((obj: any) => canvas.remove(obj));
+
+    if (frameType === 'none') {
+      setSelectedFrame('none');
+      canvas.renderAll();
+      return;
+    }
+
+    const mainImage = canvas.getObjects().find((obj: any) => obj.id === 'mainImage');
+    if (!mainImage) return;
+
+    // Get the exact bounds of the main image
+    const imageBounds = mainImage.getBoundingRect(true);
+    const frameWidth = 20;
+    
+    let frameRect;
+    
+    switch (frameType) {
+      case 'classic':
+        frameRect = new fabric.Rect({
+          left: imageBounds.left - frameWidth,
+          top: imageBounds.top - frameWidth,
+          width: imageBounds.width + (frameWidth * 2),
+          height: imageBounds.height + (frameWidth * 2),
+          fill: '#8B4513',
+          stroke: '#654321',
+          strokeWidth: 2,
+          selectable: false,
+          evented: false,
+          id: 'frame'
+        });
+        break;
+      case 'modern':
+        frameRect = new fabric.Rect({
+          left: imageBounds.left - frameWidth,
+          top: imageBounds.top - frameWidth,
+          width: imageBounds.width + (frameWidth * 2),
+          height: imageBounds.height + (frameWidth * 2),
+          fill: '#2c3e50',
+          stroke: '#34495e',
+          strokeWidth: 1,
+          selectable: false,
+          evented: false,
+          id: 'frame'
+        });
+        break;
+      case 'vintage':
+        frameRect = new fabric.Rect({
+          left: imageBounds.left - frameWidth,
+          top: imageBounds.top - frameWidth,
+          width: imageBounds.width + (frameWidth * 2),
+          height: imageBounds.height + (frameWidth * 2),
+          fill: '#d4af37',
+          stroke: '#b8860b',
+          strokeWidth: 3,
+          selectable: false,
+          evented: false,
+          id: 'frame'
+        });
+        break;
+      case 'polaroid':
+        frameRect = new fabric.Rect({
+          left: imageBounds.left - frameWidth,
+          top: imageBounds.top - frameWidth,
+          width: imageBounds.width + (frameWidth * 2),
+          height: imageBounds.height + (frameWidth * 3), // Extra space at bottom
+          fill: '#ffffff',
+          stroke: '#cccccc',
+          strokeWidth: 1,
+          selectable: false,
+          evented: false,
+          id: 'frame'
+        });
+        break;
+      case 'ornate':
+        frameRect = new fabric.Rect({
+          left: imageBounds.left - frameWidth,
+          top: imageBounds.top - frameWidth,
+          width: imageBounds.width + (frameWidth * 2),
+          height: imageBounds.height + (frameWidth * 2),
+          fill: '#ffd700',
+          stroke: '#ff8c00',
+          strokeWidth: 4,
+          selectable: false,
+          evented: false,
+          id: 'frame'
+        });
+        break;
+    }
+
+    if (frameRect) {
+      canvas.add(frameRect);
+      canvas.sendToBack(frameRect);
+      canvas.bringToFront(mainImage);
+      canvas.renderAll();
+      setSelectedFrame(frameType);
+      setEditedImages(prev => new Set(prev).add(selectedImageIndex));
+    }
+  };
+
+  // Border functions (improved centering)
+  const applyBorder = (borderType: string) => {
+    pushUndo();
+    const canvas = fabricCanvasRef.current;
+    if (!canvas || !fabric || !isImageLoaded) return;
+
+    // Remove existing border(s)
+    canvas.getObjects().filter((obj: any) => obj.id === 'border' || obj.id === 'innerBorder').forEach((obj: any) => canvas.remove(obj));
+
+    const mainImage = canvas.getObjects().find((obj: any) => obj.id === 'mainImage');
+    if (!mainImage) return;
+
+    // Get the exact bounds of the main image
+    const imageBounds = mainImage.getBoundingRect(true);
+    const centerX = mainImage.left;
+    const centerY = mainImage.top;
+
+    let borderRect;
+    let strokeDashArray: number[] | undefined;
+
+    switch (borderType) {
+      case 'solid':
+        strokeDashArray = undefined;
+        break;
+      case 'dashed':
+        strokeDashArray = [10, 5];
+        break;
+      case 'dotted':
+        strokeDashArray = [2, 3];
+        break;
+      case 'double':
+        strokeDashArray = undefined;
+        break;
+      case 'rounded':
+        strokeDashArray = undefined;
+        break;
+    }
+
+    borderRect = new fabric.Rect({
+      left: centerX,
+      top: centerY,
+      originX: 'center',
+      originY: 'center',
+      width: imageBounds.width + borderWidth,
+      height: imageBounds.height + borderWidth,
+      fill: 'transparent',
+      stroke: borderColor,
+      strokeWidth: borderWidth,
+      strokeDashArray: strokeDashArray,
+      rx: borderType === 'rounded' ? 10 : 0,
+      ry: borderType === 'rounded' ? 10 : 0,
+      selectable: false,
+      evented: false,
+      id: 'border'
+    });
+
+    if (borderType === 'double') {
+      // Create inner border for double effect
+      const innerBorder = new fabric.Rect({
+        left: centerX,
+        top: centerY,
+        originX: 'center',
+        originY: 'center',
+        width: imageBounds.width - borderWidth,
+        height: imageBounds.height - borderWidth,
+        fill: 'transparent',
+        stroke: borderColor,
+        strokeWidth: Math.max(1, borderWidth / 3),
+        selectable: false,
+        evented: false,
+        id: 'innerBorder'
+      });
+      canvas.add(innerBorder);
+    }
+
+    canvas.add(borderRect);
+    canvas.renderAll();
+    setSelectedBorder(borderType);
+    setEditedImages(prev => new Set(prev).add(selectedImageIndex));
+  };
+
+  // Watermark functions
+  const addTextWatermark = () => {
+    pushUndo();
+    const canvas = fabricCanvasRef.current;
+    if (!canvas || !fabric || watermarkText.trim() === "" || !isImageLoaded) return;
+    // Remove existing text watermark if any
+    const existingTextWatermark = canvas.getObjects().find((obj: any) => obj.id === 'textWatermark');
+    if (existingTextWatermark) {
+      canvas.remove(existingTextWatermark);
+    }
+
+    const textWatermark = new fabric.Text(watermarkText, {
+      left: canvas.getWidth() / 2,
+      top: canvas.getHeight() / 2,
+      fontFamily: 'Arial',
+      fontSize: watermarkSize,
+      fill: watermarkColor,
+      opacity: watermarkOpacity, // <-- ensure opacity is set
+      selectable: true,
+      evented: true,
+      id: 'textWatermark'
+    });
+
+    canvas.add(textWatermark);
+    canvas.setActiveObject(textWatermark);
+    canvas.renderAll();
+    
+    setEditedImages(prev => new Set(prev).add(selectedImageIndex));
+  };
+
+  const addImageWatermark = (e: React.ChangeEvent<HTMLInputElement>) => {
+    pushUndo();
+    const file = e.target.files?.[0];
+    if (!file || !fabric || !isImageLoaded) return;
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const imgSrc = event.target?.result as string;
+      
+      fabric.Image.fromURL(imgSrc, (img: any) => {
+        // Set fixed initial size (small)
+        const fixedSize = 100;
+        const scale = fixedSize / Math.max(img.width!, img.height!);
+        
+        img.scale(scale);
+        img.set({
+          left: canvas.getWidth() / 2,
+          top: canvas.getHeight() / 2,
+          opacity: watermarkImageOpacity,
+          selectable: true,
+          evented: true,
+          id: 'imageWatermark'
+        });
+
+        canvas.add(img);
+        canvas.setActiveObject(img);
+        canvas.renderAll();
+        
+        setEditedImages(prev => new Set(prev).add(selectedImageIndex));
+      });
+    };
+    reader.readAsDataURL(file);
+    
+    // Reset input
+    e.target.value = '';
+  };
+
+  // Reset function
   const resetImage = () => {
+    pushUndo();
     setBrightness(0);
     setContrast(0);
     setSaturation(0);
     setSelectedFrame('none');
     setSelectedBorder('none');
+    setSelectedFilter('none');
     setIsCropping(false);
     
     if (currentImages[selectedImageIndex]) {
       loadImageToCanvas(currentImages[selectedImageIndex]);
     }
     
-    // Remove from edited images
     setEditedImages(prev => {
       const newSet = new Set(prev);
       newSet.delete(selectedImageIndex);
@@ -420,228 +1140,103 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
     });
   };
 
-  const saveCurrentImage = () => {
-    const canvas = fabricCanvasRef.current;
-    if (!canvas || !isImageLoaded) return;
-
-    try {
-      const dataURL = canvas.toDataURL({
-        format: "png",
-        quality: 1,
-      });
-
-      onSave(session.id, selectedImageIndex, dataURL);
-      setShowSaveDialog(true);
-      
-      // Mark image as edited
-      setEditedImages(prev => new Set(prev).add(selectedImageIndex));
-    } catch (error) {
-      console.error('Save failed:', error);
-      alert('Save failed due to image security restrictions.');
-    }
-  };
-
-  const saveAllImages = async () => {
-    const canvas = fabricCanvasRef.current;
-    if (!canvas || !isImageLoaded) return;
-
-    try {
-      const allImages: string[] = [];
-      for (let i = 0; i < currentImages.length; i++) {
-        // Restore edit state for this image
-        const state = imageEditStates[i];
-        await loadImageToCanvas(currentImages[i]);
-        setBrightness(state.brightness);
-        setContrast(state.contrast);
-        setSaturation(state.saturation);
-        setSelectedBorder(state.border);
-        setBorderWidth(state.borderWidth);
-        setBorderColor(state.borderColor);
-        setSelectedFrame(state.frame);
-        // Apply all edits
-        applyImageFilter('brightness', state.brightness / 100);
-        applyImageFilter('contrast', state.contrast / 100);
-        applyImageFilter('saturation', state.saturation / 100);
-        if (state.border !== 'none') {
-          applyBorder(state.border);
-        }
-        // Wait for canvas to update
-        await new Promise((resolve) => setTimeout(resolve, 50));
-        const dataURL = canvas.toDataURL({
-          format: "png",
-          quality: 1,
-        });
-        allImages.push(dataURL);
-        // Remove border/frame for next image
-        const borderObj = canvas.getObjects().find((obj: any) => obj.id === 'border');
-        if (borderObj) canvas.remove(borderObj);
-        const frameObj = canvas.getObjects().find((obj: any) => obj.id === 'frame');
-        if (frameObj) canvas.remove(frameObj);
-      }
-      onSave(session.id, allImages);
-    } catch (error) {
-      console.error('Save all failed:', error);
-      alert('Save failed due to image security restrictions.');
-    }
-  };
-
   const confirmDeleteImage = () => {
     if (imageToDelete !== null && onDeleteImage) {
-      const newImages = currentImages.filter((_, index) => index !== imageToDelete);
-      setCurrentImages(newImages);
-      
-      // Update edited images set
-      const newEditedImages = new Set<number>();
-      editedImages.forEach(index => {
-        if (index < imageToDelete) {
-          newEditedImages.add(index);
-        } else if (index > imageToDelete) {
-          newEditedImages.add(index - 1);
-        }
-      });
-      setEditedImages(newEditedImages);
-      
-      if (selectedImageIndex >= newImages.length) {
-        setSelectedImageIndex(Math.max(0, newImages.length - 1));
-      } else if (selectedImageIndex >= imageToDelete) {
-        setSelectedImageIndex(Math.max(0, selectedImageIndex - 1));
-      }
-      
       onDeleteImage(session.id, imageToDelete);
       setShowDeleteDialog(false);
       setImageToDelete(null);
-      
-      if (newImages.length > 0) {
-        const newIndex = selectedImageIndex >= newImages.length ? newImages.length - 1 : selectedImageIndex;
-        setTimeout(() => loadImageToCanvas(newImages[newIndex]), 100);
-      }
     }
   };
 
-  const loadImageToCanvas = async (imageUrl: string) => {
-    setIsImageLoaded(false);
-    setImageLoadError(null);
-    console.log('Loading image into canvas:', imageUrl);
-
-    // Set canvas size
-    if (canvasRef.current) {
-      canvasRef.current.width = 800;
-      canvasRef.current.height = 600;
-    }
-
-    // Initialize fabric canvas if not already
-    let canvas = fabricCanvasRef.current;
-    if (!canvas) {
-      const fabricCanvas = new fabric.Canvas(canvasRef.current, {
-        backgroundColor: "#fff",
-        selection: false,
-        preserveObjectStacking: true,
-        width: 800,
-        height: 600,
-      });
-      fabricCanvasRef.current = fabricCanvas;
-      canvas = fabricCanvas;
-      setFabricLoaded(true);
-    } else {
-      canvas.setWidth(800);
-      canvas.setHeight(600);
-    }
-
-    // Remove all objects from canvas
-    canvas.clear();
-
-    if (!imageUrl) {
-      setImageLoadError('No image URL provided.');
-      return;
-    }
-
-    // Detect blob/data URLs
-    const isBlobOrData = imageUrl.startsWith('blob:') || imageUrl.startsWith('data:');
-    console.log('Image type:', isBlobOrData ? 'blob/data' : 'http(s)');
-
-    // Fallback function
-    const tryDrawWithHTMLImageElement = (url) => {
-      const img = new window.Image();
-      img.crossOrigin = 'anonymous';
-      img.onload = function() {
-        const ctx = canvasRef.current.getContext('2d');
-        ctx.clearRect(0, 0, 800, 600);
-        let scale = Math.min(800 / img.width, 600 / img.height);
-        let w = img.width * scale;
-        let h = img.height * scale;
-        let x = (800 - w) / 2;
-        let y = (600 - h) / 2;
-        ctx.drawImage(img, x, y, w, h);
-        setImageLoadError(null);
-        setIsImageLoaded(true);
-      };
-      img.onerror = function() {
-        setImageLoadError('HTMLImageElement also failed to load this image.');
-        setIsImageLoaded(false);
-      };
-      img.src = url;
-    };
-
-    if (isBlobOrData) {
-      // Always use HTMLImageElement for blob/data URLs
-      tryDrawWithHTMLImageElement(imageUrl);
-      return;
-    }
-
-    // Loader function for http(s) URLs
-    const loadImage = (url, options) => {
-      fabric.Image.fromURL(url, (img) => {
-        if (!img) {
-          setImageLoadError('Failed to load image in fabric. Trying fallback...');
-          tryDrawWithHTMLImageElement(url);
-          return;
-        }
-        // Fit image to canvas
-        const scaleX = canvas.width / img.width;
-        const scaleY = canvas.height / img.height;
-        const scale = Math.min(scaleX, scaleY);
-        img.set({
-          left: (canvas.width - img.width * scale) / 2,
-          top: (canvas.height - img.height * scale) / 2,
-          scaleX: scale,
-          scaleY: scale,
-          selectable: false,
-          id: "mainImage",
-        });
-        canvas.add(img);
-        canvas.sendToBack(img);
-        canvas.renderAll();
-        setIsImageLoaded(true);
-      }, options);
-    };
-
-    // Use fabric.js for http(s) URLs
-    loadImage(imageUrl, { crossOrigin: "anonymous" });
+  const handleDeleteImageClick = (index: number) => {
+    setImageToDelete(index);
+    setShowDeleteDialog(true);
   };
 
-  // Load the initial image when the component mounts or selectedImageIndex/currentImages changes
+  // Auto-save functionality
   useEffect(() => {
-    if (currentImages[selectedImageIndex]) {
-      loadImageToCanvas(currentImages[selectedImageIndex]);
+    if (autoSaveTimeout) {
+      clearTimeout(autoSaveTimeout);
     }
-    // eslint-disable-next-line
-  }, [selectedImageIndex, currentImages]);
 
-  // Frame and border options
-  const frameOptions = [
-    { value: 'none', label: 'None' },
-    { value: 'classic', label: 'Classic' },
-    { value: 'modern', label: 'Modern' },
-    { value: 'vintage', label: 'Vintage' },
-    { value: 'polaroid', label: 'Polaroid' },
-  ];
-  const borderOptions = [
-    { value: 'none', label: 'None' },
-    { value: 'solid', label: 'Solid' },
-    { value: 'dashed', label: 'Dashed' },
-    { value: 'dotted', label: 'Dotted' },
-    { value: 'double', label: 'Double' },
-  ];
+    const timeout = setTimeout(() => {
+      // Optional: Implement auto-save logic here
+    }, 5000); // 5 seconds
+
+    setAutoSaveTimeout(timeout);
+
+    return () => {
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+    };
+  }, [brightness, contrast, saturation, selectedFilter, selectedFrame, selectedBorder]);
+
+  // Live update watermark size
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas || !fabric) return;
+    const textWatermark = canvas.getObjects().find((obj) => obj.id === 'textWatermark');
+    if (textWatermark) {
+      textWatermark.set({ fontSize: watermarkSize });
+      canvas.renderAll();
+    }
+  }, [watermarkSize]);
+
+  // Live update watermark opacity
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas || !fabric) return;
+    const textWatermark = canvas.getObjects().find((obj) => obj.id === 'textWatermark');
+    if (textWatermark) {
+      textWatermark.set({ opacity: watermarkOpacity });
+      canvas.renderAll();
+    }
+  }, [watermarkOpacity]);
+
+  // Live update watermark color
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas || !fabric) return;
+    const textWatermark = canvas.getObjects().find((obj) => obj.id === 'textWatermark');
+    if (textWatermark) {
+      textWatermark.set({ fill: watermarkColor });
+      canvas.renderAll();
+    }
+  }, [watermarkColor]);
+
+  // Live update image watermark opacity
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas || !fabric) return;
+    const imageWatermark = canvas.getObjects().find((obj) => obj.id === 'imageWatermark');
+    if (imageWatermark) {
+      imageWatermark.set({ opacity: watermarkImageOpacity });
+      canvas.renderAll();
+    }
+  }, [watermarkImageOpacity]);
+
+  // Undo handler
+  const handleUndo = () => {
+    if (undoStack.length === 0 || !fabricCanvasRef.current) return;
+    const prevState = undoStack[undoStack.length - 1];
+    setUndoStack(undoStack.slice(0, -1));
+    setRedoStack(r => [...r, fabricCanvasRef.current!.toJSON()]);
+    fabricCanvasRef.current.loadFromJSON(prevState, () => {
+      fabricCanvasRef.current.renderAll();
+    });
+  };
+
+  // Redo handler
+  const handleRedo = () => {
+    if (redoStack.length === 0 || !fabricCanvasRef.current) return;
+    const nextState = redoStack[redoStack.length - 1];
+    setRedoStack(redoStack.slice(0, -1));
+    setUndoStack(u => [...u, fabricCanvasRef.current!.toJSON()]);
+    fabricCanvasRef.current.loadFromJSON(nextState, () => {
+      fabricCanvasRef.current.renderAll();
+    });
+  };
 
   if (!fabricLoaded) {
     return (
@@ -664,12 +1259,19 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
           <h2 className="text-xl font-bold">Photo Editor - {session.customerDetails.name}</h2>
           <div className="flex items-center gap-2">
             <Button 
-              onClick={saveAllImages} 
+              onClick={saveAllImages}
               className="bg-green-600 hover:bg-green-700"
               disabled={!isImageLoaded}
             >
               <Save className="h-4 w-4 mr-2" />
-              Save All Images
+              Save All
+            </Button>
+            {/* Undo/Redo Buttons */}
+            <Button onClick={handleUndo} disabled={undoStack.length === 0} variant="outline" className="ml-2">
+              <RotateCcw className="h-4 w-4" />
+            </Button>
+            <Button onClick={handleRedo} disabled={redoStack.length === 0} variant="outline">
+              <RotateCw className="h-4 w-4" />
             </Button>
             <Button onClick={onClose} variant="ghost" size="icon">
               <X className="h-4 w-4" />
@@ -679,259 +1281,439 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
 
         <div className="flex flex-1 overflow-hidden">
           {/* Left Toolbar */}
-          <div className="w-64 border-r border-border p-4 overflow-y-auto bg-gray-50 dark:bg-slate-700">
-            <div className="space-y-6">
-              {/* Crop Tool */}
-              <div>
-                <h3 className="font-semibold mb-3 flex items-center">
-                  <Crop className="h-4 w-4 mr-2" />
-                  Crop
-                </h3>
-                {!isCropping ? (
-                  <Button 
-                    onClick={enableCropping} 
-                    className="w-full" 
-                    variant="outline"
-                    disabled={!isImageLoaded}
+          <div className="w-80 border-r border-border p-4 overflow-y-auto bg-gray-50 dark:bg-slate-700">
+            <div className="space-y-4">
+              {/* Tool Categories */}
+              {toolCategories.map((category) => (
+                <div key={category.id} className="border border-gray-200 rounded-lg overflow-hidden">
+                  <Button
+                    variant="ghost"
+                    className={`w-full justify-between p-4 h-auto ${
+                      activeTool === category.id ? 'bg-blue-100 dark:bg-blue-900' : 'hover:bg-gray-100'
+                    }`}
+                    onClick={() => toggleTool(category.id)}
                   >
-                    Start Cropping
+                    <div className="flex items-center gap-3">
+                      <category.icon className="h-5 w-5" />
+                      <span className="font-medium">{category.label}</span>
+                    </div>
+                    {activeTool === category.id ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                   </Button>
-                ) : (
-                  <div className="space-y-2">
-                    <Button onClick={applyCrop} className="w-full bg-green-600 hover:bg-green-700">
-                      Apply Crop
-                    </Button>
-                    <Button onClick={cancelCrop} className="w-full" variant="outline">
-                      Cancel
-                    </Button>
-                  </div>
-                )}
-              </div>
-
-              {/* Brightness */}
-              <div>
-                <h3 className="font-semibold mb-3 flex items-center">
-                  <Sun className="h-4 w-4 mr-2" />
-                  Brightness
-                </h3>
-                <div className="space-y-2">
-                  <Input
-                    type="range"
-                    min="-100"
-                    max="100"
-                    value={brightness}
-                    onChange={(e) => applyBrightness(Number(e.target.value))}
-                    className="w-full"
-                    disabled={!isImageLoaded}
-                  />
-                  <div className="flex items-center justify-between">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => adjustValue('brightness', false)}
-                      disabled={!isImageLoaded || brightness <= -100}
-                    >
-                      <Minus className="h-3 w-3" />
-                    </Button>
-                    <div className="text-sm text-center flex-1">{brightness}%</div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => adjustValue('brightness', true)}
-                      disabled={!isImageLoaded || brightness >= 100}
-                    >
-                      <Plus className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Contrast */}
-              <div>
-                <h3 className="font-semibold mb-3 flex items-center">
-                  <Circle className="h-4 w-4 mr-2" />
-                  Contrast
-                </h3>
-                <div className="space-y-2">
-                  <Input
-                    type="range"
-                    min="-100"
-                    max="100"
-                    value={contrast}
-                    onChange={(e) => applyContrast(Number(e.target.value))}
-                    className="w-full"
-                    disabled={!isImageLoaded}
-                  />
-                  <div className="flex items-center justify-between">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => adjustValue('contrast', false)}
-                      disabled={!isImageLoaded || contrast <= -100}
-                    >
-                      <Minus className="h-3 w-3" />
-                    </Button>
-                    <div className="text-sm text-center flex-1">{contrast}%</div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => adjustValue('contrast', true)}
-                      disabled={!isImageLoaded || contrast >= 100}
-                    >
-                      <Plus className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Saturation */}
-              <div>
-                <h3 className="font-semibold mb-3 flex items-center">
-                  <Palette className="h-4 w-4 mr-2" />
-                  Saturation
-                </h3>
-                <div className="space-y-2">
-                  <Input
-                    type="range"
-                    min="-100"
-                    max="100"
-                    value={saturation}
-                    onChange={(e) => applySaturation(Number(e.target.value))}
-                    className="w-full"
-                    disabled={!isImageLoaded}
-                  />
-                  <div className="flex items-center justify-between">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => adjustValue('saturation', false)}
-                      disabled={!isImageLoaded || saturation <= -100}
-                    >
-                      <Minus className="h-3 w-3" />
-                    </Button>
-                    <div className="text-sm text-center flex-1">{saturation}%</div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => adjustValue('saturation', true)}
-                      disabled={!isImageLoaded || saturation >= 100}
-                    >
-                      <Plus className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Frames */}
-              <div>
-                <h3 className="font-semibold mb-3 flex items-center">
-                  <Square className="h-4 w-4 mr-2" />
-                  Frames
-                </h3>
-                <div className="space-y-2">
-                  {frameOptions.map((frame) => (
-                    <Button
-                      key={frame.value}
-                      variant={selectedFrame === frame.value ? "default" : "outline"}
-                      size="sm"
-                      className="w-full"
-                      onClick={() => applyFrame(frame.value)}
-                      disabled={!isImageLoaded}
-                    >
-                      {frame.label}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Borders */}
-              <div>
-                <h3 className="font-semibold mb-3">Borders</h3>
-                <div className="space-y-3">
-                  <div className="space-y-2">
-                    {borderOptions.map((border) => (
-                      <Button
-                        key={border.value}
-                        variant={selectedBorder === border.value ? "default" : "outline"}
-                        size="sm"
-                        className="w-full"
-                        onClick={() => applyBorder(border.value)}
-                        disabled={!isImageLoaded}
-                      >
-                        {border.label}
-                      </Button>
-                    ))}
-                  </div>
                   
-                  {selectedBorder !== 'none' && (
-                    <>
-                      <div>
-                        <label className="text-sm font-medium">Border Width</label>
-                        <Input
-                          type="range"
-                          min="1"
-                          max="50"
-                          value={borderWidth}
-                          onChange={(e) => {
-                            setBorderWidth(Number(e.target.value));
-                            if (selectedBorder !== 'none') {
-                              applyBorder(selectedBorder);
-                            }
-                          }}
-                          className="w-full"
-                          disabled={!isImageLoaded}
-                        />
-                        <div className="text-sm text-center">{borderWidth}px</div>
-                      </div>
-                      
-                      <div>
-                        <label className="text-sm font-medium">Border Color</label>
-                        <Input
-                          type="color"
-                          value={borderColor}
-                          onChange={(e) => {
-                            setBorderColor(e.target.value);
-                            if (selectedBorder !== 'none') {
-                              applyBorder(selectedBorder);
-                            }
-                          }}
-                          className="w-full h-10"
-                          disabled={!isImageLoaded}
-                        />
-                      </div>
-                    </>
+                  {/* Tool Content */}
+                  {activeTool === category.id && (
+                    <div className="p-4 bg-white dark:bg-slate-800 border-t">
+                      {/* Crop Tools */}
+                      {category.id === 'crop' && (
+                        <div className="space-y-3">
+                          {!isCropping ? (
+                            <Button 
+                              onClick={enableCropping} 
+                              className="w-full" 
+                              variant="outline"
+                              disabled={!isImageLoaded}
+                            >
+                              <Crop className="h-4 w-4 mr-2" />
+                              Crop Image
+                            </Button>
+                          ) : (
+                            <div className="space-y-2">
+                              <Button onClick={cancelCrop} className="w-full" variant="outline">
+                                Cancel Crop
+                              </Button>
+                            </div>
+                          )}
+                          <div className="flex gap-2">
+                            <Button 
+                              onClick={() => rotateImage('left')} 
+                              variant="outline" 
+                              className="flex-1"
+                              disabled={!isImageLoaded}
+                            >
+                              <RotateCcw className="h-4 w-4 mr-2" />
+                              Left
+                            </Button>
+                            <Button 
+                              onClick={() => rotateImage('right')} 
+                              variant="outline" 
+                              className="flex-1"
+                              disabled={!isImageLoaded}
+                            >
+                              <RotateCw className="h-4 w-4 mr-2" />
+                              Right
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Adjustment Tools */}
+                      {category.id === 'adjustment' && (
+                        <div className="space-y-4">
+                          {/* Brightness */}
+                          <div>
+                            <label className="text-sm font-medium mb-2 block">
+                              <Sun className="h-4 w-4 inline mr-2" />
+                              Brightness: {brightness}%
+                            </label>
+                            <Input
+                              type="range"
+                              min="-100"
+                              max="100"
+                              step="1"
+                              value={brightness}
+                              onChange={(e) => applyBrightness(Number(e.target.value))}
+                              className="w-full"
+                              disabled={!isImageLoaded}
+                            />
+                            <div className="flex gap-2 mt-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => adjustBrightness(false)}
+                                disabled={!isImageLoaded || brightness <= -100}
+                                className="flex-1"
+                              >
+                                <Minus className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => adjustBrightness(true)}
+                                disabled={!isImageLoaded || brightness >= 100}
+                                className="flex-1"
+                              >
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </div>
+
+                          {/* Contrast */}
+                          <div>
+                            <label className="text-sm font-medium mb-2 block">
+                              <Circle className="h-4 w-4 inline mr-2" />
+                              Contrast: {contrast}%
+                            </label>
+                            <Input
+                              type="range"
+                              min="-100"
+                              max="100"
+                              step="1"
+                              value={contrast}
+                              onChange={(e) => applyContrast(Number(e.target.value))}
+                              className="w-full"
+                              disabled={!isImageLoaded}
+                            />
+                            <div className="flex gap-2 mt-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => adjustContrast(false)}
+                                disabled={!isImageLoaded || contrast <= -100}
+                                className="flex-1"
+                              >
+                                <Minus className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => adjustContrast(true)}
+                                disabled={!isImageLoaded || contrast >= 100}
+                                className="flex-1"
+                              >
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </div>
+
+                          {/* Saturation */}
+                          <div>
+                            <label className="text-sm font-medium mb-2 block">
+                              <Palette className="h-4 w-4 inline mr-2" />
+                              Saturation: {saturation}%
+                            </label>
+                            <Input
+                              type="range"
+                              min="-100"
+                              max="100"
+                              step="1"
+                              value={saturation}
+                              onChange={(e) => applySaturation(Number(e.target.value))}
+                              className="w-full"
+                              disabled={!isImageLoaded}
+                            />
+                            <div className="flex gap-2 mt-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => adjustSaturation(false)}
+                                disabled={!isImageLoaded || saturation <= -100}
+                                className="flex-1"
+                              >
+                                <Minus className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => adjustSaturation(true)}
+                                disabled={!isImageLoaded || saturation >= 100}
+                                className="flex-1"
+                              >
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Filter Tools */}
+                      {category.id === 'filter' && (
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-2 gap-2">
+                            {filterOptions.map((filter) => {
+                              const IconComponent = filter.icon;
+                              return (
+                                <Button
+                                  key={filter.value}
+                                  variant={selectedFilter === filter.value ? "default" : "outline"}
+                                  className="h-16 flex flex-col items-center justify-center p-2 text-xs"
+                                  onClick={() => applyFilter(filter.value)}
+                                  disabled={!isImageLoaded}
+                                  style={{
+                                    borderColor: selectedFilter === filter.value ? filter.color : undefined
+                                  }}
+                                >
+                                  <IconComponent className="text-lg mb-1" style={{ color: filter.color }} />
+                                  <span className="text-[10px] leading-tight text-center">{filter.label}</span>
+                                </Button>
+                              );
+                            })}
+                          </div>
+                          
+                          {selectedFilter !== 'none' && (
+                            <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                              <p className="text-xs text-blue-700 dark:text-blue-300">
+                                <Filter className="h-3 w-3 inline mr-1" />
+                                Filter "{filterOptions.find(f => f.value === selectedFilter)?.label}" applied
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Frame Tools */}
+                      {category.id === 'frame' && (
+                        <div className="grid grid-cols-3 gap-2">
+                          {frameOptions.map((frame) => {
+                            const IconComponent = frame.icon;
+                            return (
+                              <Button
+                                key={frame.value}
+                                variant={selectedFrame === frame.value ? "default" : "outline"}
+                                className="h-16 flex flex-col items-center justify-center p-2"
+                                onClick={() => applyFrame(frame.value)}
+                                disabled={!isImageLoaded}
+                              >
+                                <IconComponent className="text-2xl mb-1" />
+                                <span className="text-xs">{frame.label}</span>
+                              </Button>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Border Tools */}
+                      {category.id === 'border' && (
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-3 gap-2">
+                            {borderOptions.map((border) => {
+                              const IconComponent = border.icon;
+                              return (
+                                <Button
+                                  key={border.value}
+                                  variant={selectedBorder === border.value ? "default" : "outline"}
+                                  className="h-16 flex flex-col items-center justify-center p-2"
+                                  onClick={() => applyBorder(border.value)}
+                                  disabled={!isImageLoaded}
+                                >
+                                  <IconComponent className="text-2xl mb-1" />
+                                  <span className="text-xs">{border.label}</span>
+                                </Button>
+                              );
+                            })}
+                          </div>
+                          
+                          {selectedBorder !== 'none' && (
+                            <div className="space-y-3 pt-3 border-t">
+                              <div>
+                                <label className="text-sm font-medium">Border Width: {borderWidth}px</label>
+                                <Input
+                                  type="range"
+                                  min="1"
+                                  max="50"
+                                  value={borderWidth}
+                                  onChange={(e) => {
+                                    setBorderWidth(Number(e.target.value));
+                                    if (selectedBorder !== 'none') {
+                                      applyBorder(selectedBorder);
+                                    }
+                                  }}
+                                  className="w-full"
+                                  disabled={!isImageLoaded}
+                                />
+                              </div>
+                              
+                              <div>
+                                <label className="text-sm font-medium">Border Color</label>
+                                <Input
+                                  type="color"
+                                  value={borderColor}
+                                  onChange={(e) => {
+                                    setBorderColor(e.target.value);
+                                    if (selectedBorder !== 'none') {
+                                      applyBorder(selectedBorder);
+                                    }
+                                  }}
+                                  className="w-full h-10"
+                                  disabled={!isImageLoaded}
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Watermark Tools */}
+                      {category.id === 'watermark' && (
+                        <div className="space-y-8">
+                          {/* Minimal Text Watermark Section */}
+                          <div className="flex flex-col gap-4">
+                            <h4 className="font-semibold text-sm text-gray-700 dark:text-gray-200 mb-1">Text Watermark</h4>
+                            <Input
+                              placeholder="watermark text"
+                              value={watermarkText}
+                              onChange={(e) => setWatermarkText(e.target.value)}
+                              disabled={!isImageLoaded}
+                              className="mb-1 text-base px-3 py-2"
+                            />
+                            <div className="flex flex-col gap-2">
+                              <div className="flex items-center gap-4">
+                                <div className="flex-1 flex flex-col gap-1">
+                                  <span className="text-xs text-gray-500">Size</span>
+                                  <Input
+                                    type="range"
+                                    min="12"
+                                    max="72"
+                                    value={watermarkSize}
+                                    onChange={(e) => setWatermarkSize(Number(e.target.value))}
+                                    disabled={!isImageLoaded}
+                                    className="w-full h-2"
+                                    style={{ accentColor: '#888' }}
+                                  />
+                                </div>
+                                <div className="flex-1 flex flex-col gap-1">
+                                  <span className="text-xs text-gray-500">Opacity</span>
+                                  <Input
+                                    type="range"
+                                    min="0.1"
+                                    max="1"
+                                    step="0.01"
+                                    value={watermarkOpacity}
+                                    onChange={(e) => setWatermarkOpacity(Number(e.target.value))}
+                                    disabled={!isImageLoaded}
+                                    className="w-full h-2"
+                                    style={{ accentColor: '#888' }}
+                                  />
+                                </div>
+                              </div>
+                              <div>
+                                <span className="text-xs text-gray-500">Color</span>
+                                <div className="flex items-center gap-3 mt-1 mb-4">
+                                  {[
+                                    { name: 'Black', value: '#000000' },
+                                    { name: 'White', value: '#FFFFFF' },
+                                    { name: 'Brown', value: '#8B4513' },
+                                    { name: 'Red', value: '#FF0000' },
+                                    { name: 'Blue', value: '#0074D9' },
+                                    { name: 'Green', value: '#2ECC40' },
+                                    { name: 'Yellow', value: '#FFDC00' },
+                                  ].map((swatch) => (
+                                    <button
+                                      key={swatch.value}
+                                      type="button"
+                                      className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all duration-150 ${watermarkColor.toLowerCase() === swatch.value.toLowerCase() ? 'border-blue-400 scale-110' : 'border-gray-200'}`}
+                                      style={{ backgroundColor: swatch.value }}
+                                      onClick={() => setWatermarkColor(swatch.value)}
+                                      aria-label={swatch.name}
+                                    />
+                                  ))}
+                                </div>
+                                <div className="flex justify-center mt-2 mb-4">
+                                  <HexColorPicker 
+                                    color={watermarkColor} 
+                                    onChange={setWatermarkColor} 
+                                    style={{ width: 120, height: 120, borderRadius: '9999px', boxShadow: 'none' }}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                            <Button
+                              onClick={addTextWatermark}
+                              variant="ghost"
+                              className="w-full py-2 text-base font-medium border border-gray-200 dark:border-slate-700 mt-4"
+                              disabled={!isImageLoaded || !watermarkText.trim()}
+                            >
+                              Add Text Watermark
+                            </Button>
+                          </div>
+                          {/* Divider and Image Watermark section remain unchanged */}
+                          <div className="border-t border-gray-200 dark:border-slate-700 my-2" />
+                          {/* Image Watermark Card */}
+                          <div className="bg-white dark:bg-slate-800 rounded-xl shadow p-4 flex flex-col gap-4 border border-gray-100 dark:border-slate-700">
+                            <h4 className="font-semibold text-base mb-1">Image Watermark</h4>
+                            <div className="flex flex-col gap-2">
+                              <label className="text-xs font-medium">Opacity</label>
+                              <Input
+                                type="range"
+                                min="0.1"
+                                max="1"
+                                step="0.01"
+                                value={watermarkImageOpacity}
+                                onChange={(e) => setWatermarkImageOpacity(Number(e.target.value))}
+                                disabled={!isImageLoaded}
+                                className="w-full h-3"
+                              />
+                              <span className="text-xs text-gray-500">{Math.round(watermarkImageOpacity * 100)}%</span>
+                            </div>
+                            <Button
+                              onClick={() => watermarkInputRef.current?.click()}
+                              variant="outline"
+                              className="w-full py-3 text-base font-semibold"
+                              disabled={!isImageLoaded}
+                            >
+                              Choose Image
+                            </Button>
+                            <input
+                              ref={watermarkInputRef}
+                              type="file"
+                              accept="image/*"
+                              onChange={addImageWatermark}
+                              className="hidden"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
-              </div>
+              ))}
             </div>
           </div>
 
           {/* Canvas Area */}
           <div className="flex-1 flex flex-col items-center justify-center bg-gray-100 dark:bg-slate-600 p-4">
-            <div className="bg-white rounded-lg shadow-lg relative flex items-center justify-center" style={{ minWidth: 400, minHeight: 300, maxWidth: 800, maxHeight: 600 }}>
-              <canvas
-                ref={canvasRef}
-                width={800}
-                height={600}
-                className="border border-gray-300 rounded-lg bg-white"
-                aria-label="Photo editing canvas"
-              />
-              <div className="absolute top-2 left-2 text-xs text-gray-400 bg-white/80 px-2 py-1 rounded shadow">
-                <div>Image URL: {currentImages[selectedImageIndex]}</div>
-                {imageLoadError && <div className="text-red-500">Error: {imageLoadError}</div>}
-              </div>
-              {imageLoadError && currentImages[selectedImageIndex] && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <Button
-                    onClick={() => tryDrawWithHTMLImageElement(currentImages[selectedImageIndex])}
-                    className="bg-yellow-500 hover:bg-yellow-600 text-white"
-                  >
-                    Try drawing with HTMLImageElement
-                  </Button>
-                  <div className="text-xs text-yellow-700 mt-2">If this works, fabric.js cannot load this image (CORS or browser issue). Consider using a different loader for these images.</div>
-                </div>
-              )}
-              {!isImageLoaded && !imageLoadError && (
+            <div className="bg-white rounded-lg shadow-lg relative">
+              <canvas ref={canvasRef} className="border border-gray-300 rounded-lg" />
+              {!isImageLoaded && (
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="text-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2"></div>
@@ -940,35 +1722,24 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
                 </div>
               )}
             </div>
-            {/* Save, Reset, and Save All Images buttons below canvas */}
-            <div className="mt-6 flex gap-4">
-              <Button
+            
+            {/* Save Changes and Reset Buttons below canvas */}
+            <div className="mt-4 flex gap-3">
+              <Button 
                 onClick={saveCurrentImage}
-                className="bg-green-600 hover:bg-green-700 px-6 py-2 flex items-center"
+                className={`px-8 py-2 ${isCropping ? 'bg-orange-600 hover:bg-orange-700' : 'bg-green-600 hover:bg-green-700'}`}
                 disabled={!isImageLoaded}
-                aria-label="Save Changes"
               >
                 <Save className="h-4 w-4 mr-2" />
-                Save Changes
+                {isCropping ? 'Apply Crop & Save' : 'Save Changes'}
               </Button>
-              <Button
-                onClick={resetImage}
+              <Button 
+                onClick={resetImage} 
                 variant="outline"
-                className="border-blue-500 text-blue-600 hover:bg-blue-50 px-6 py-2 flex items-center"
+                className="border-blue-500 text-blue-600 hover:bg-blue-50 px-8 py-2"
                 disabled={!isImageLoaded}
-                aria-label="Reset Image"
               >
-                <X className="h-4 w-4 mr-2" />
                 Reset Image
-              </Button>
-              <Button
-                onClick={saveAllImages}
-                className="bg-emerald-600 hover:bg-emerald-700 px-6 py-2 flex items-center"
-                disabled={!isImageLoaded}
-                aria-label="Save All Images"
-              >
-                <Save className="h-4 w-4 mr-2" />
-                Save All Images
               </Button>
             </div>
           </div>
@@ -980,22 +1751,21 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
               {currentImages.map((image, index) => (
                 <div
                   key={index}
-                  className={`relative cursor-pointer rounded-lg overflow-hidden border-2 transition-all duration-200 ${
+                  className={`relative cursor-pointer overflow-hidden transition-all duration-200 ${
                     selectedImageIndex === index
-                      ? "border-blue-500 shadow-lg ring-2 ring-blue-200"
-                      : "border-gray-300 hover:border-blue-400 hover:shadow-md"
+                      ? "ring-2 ring-blue-400 bg-blue-50" // Premium highlight
+                      : "bg-white"
                   }`}
+                  style={{ borderRadius: '1rem', aspectRatio: '1 / 1', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0, minWidth: 0 }}
                   onClick={() => setSelectedImageIndex(index)}
                 >
-                  <div className="w-full h-32 aspect-[4/3] bg-gray-100 flex items-center justify-center rounded-lg overflow-hidden">
-                    <img
-                      src={image}
-                      alt={`Thumbnail ${index + 1}`}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                    />
-                  </div>
-                  
+                  <img
+                    src={image}
+                    alt={`Thumbnail ${index + 1}`}
+                    className="w-full h-full object-cover rounded-lg"
+                    loading="lazy"
+                    style={{ aspectRatio: '1 / 1', display: 'block' }}
+                  />
                   {/* Edited Badge */}
                   {editedImages.has(index) && (
                     <div className="absolute top-1 left-1 bg-green-500 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
@@ -1003,23 +1773,8 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
                       Edited
                     </div>
                   )}
-                  
-                  {/* Delete button */}
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    className="absolute top-1 right-1 h-6 w-6 p-0 opacity-80 hover:opacity-100"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setImageToDelete(index);
-                      setShowDeleteDialog(true);
-                    }}
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                  
                   {selectedImageIndex === index && (
-                    <div className="absolute inset-0 bg-blue-500 bg-opacity-20 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black bg-opacity-10 flex items-center justify-center pointer-events-none">
                       <span className="text-white font-semibold">Editing</span>
                     </div>
                   )}
@@ -1029,43 +1784,6 @@ export function PhotoEditor({ session, onClose, onSave, onDeleteImage }: PhotoEd
           </div>
         </div>
       </div>
-
-      {/* Save Success Dialog */}
-      <AlertDialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Image Saved Successfully!</AlertDialogTitle>
-            <AlertDialogDescription>
-              The current image has been saved. You can continue editing other images or close the editor.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogAction onClick={() => setShowSaveDialog(false)}>
-              Continue Editing
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Image Permanently?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. The image will be permanently deleted from the session.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={confirmDeleteImage}>
-              Delete Permanently
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

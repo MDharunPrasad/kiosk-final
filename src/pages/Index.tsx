@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AuthDialog } from "@/components/AuthDialog";
 import { PhotographerDashboard } from "@/components/PhotographerDashboard";
 import { CounterStaffDashboard } from "@/components/CounterStaffDashboard";

@@ -191,7 +191,8 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
   }, []);
 
   const handleLogout = () => {
-    window.location.reload();
+    localStorage.removeItem("currentUser");
+    window.location.href = "/";
   };
 
   // When logo is clicked, go back to last session (if any), else fallback to first session
@@ -404,7 +405,8 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
           onClick={handleBackToLastSession}
           className="flex items-center gap-3 text-blue-600 hover:text-blue-800 transition-all duration-200 group"
         >
-          <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Photo Kiosk</span>
+          <img src="/m2-logo.jpg" alt="M2 Photography Logo" className="w-8 h-8 object-contain rounded mr-2" />
+          <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">M2 Photography</span>
         </button>
         
         <div className="flex items-center gap-8">

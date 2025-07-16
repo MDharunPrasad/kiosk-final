@@ -14,6 +14,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { PhotoEditor } from "./PhotoEditor";
+import { useCart } from "../context/CartContext";
+import { useNavigate } from "react-router-dom";
 
 interface Session {
   id: string;
@@ -25,12 +27,13 @@ interface Session {
     name: string;
     location: string;
     date: string;
+    photographer?: string; // Added photographer field
   };
-  status: "pending" | "ordered";
+  status: "pending" | "ready" | "completed";
   printCount?: number;
 }
 
-const mockSessions: Session[] = [
+export const mockSessions: Session[] = [
   {
     id: "1",
     name: "Family Portrait",
@@ -39,13 +42,14 @@ const mockSessions: Session[] = [
     status: "pending",
     printCount: 2,
     images: [
-      "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800&h=600&fit=crop",
-      "https://images.unsplash.com/photo-1465101046530-73398c7f28ca?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1472396961693-142e6e269027?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1582562124811-c09040d0a901?w=800&h=600&fit=crop",
     ],
     customerDetails: {
       name: "Johnson Family",
       location: "Central Park",
-      date: "2024-07-20"
+      date: "2024-07-20",
+      photographer: "John Doe"
     }
   },
   {
@@ -56,13 +60,14 @@ const mockSessions: Session[] = [
     status: "pending",
     printCount: 5,
     images: [
-      "https://images.unsplash.com/photo-1519125323398-675f0ddb6308?w=800&h=600&fit=crop",
-      "https://images.unsplash.com/photo-1465101178521-c1a9136a3b99?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1488972685288-c3fd157d7c7a?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1441057206919-63d19fac2369?w=800&h=600&fit=crop",
     ],
     customerDetails: {
       name: "Sarah & Mike",
       location: "Riverside Gardens",
-      date: "2024-07-15"
+      date: "2024-07-15",
+      photographer: "Jane Smith"
     }
   },
   {
@@ -70,16 +75,17 @@ const mockSessions: Session[] = [
     name: "Graduation Photoshoot",
     date: "2024-07-10",
     type: "Graduation",
-    status: "ordered",
+    status: "ready",
     printCount: 3,
     images: [
-      "https://images.unsplash.com/photo-1465101046530-73398c7f28ca?w=800&h=600&fit=crop",
-      "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1472396961693-142e6e269027?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1582562124811-c09040d0a901?w=800&h=600&fit=crop",
     ],
     customerDetails: {
       name: "Emily Rodriguez",
       location: "University Campus",
-      date: "2024-07-10"
+      date: "2024-07-10",
+      photographer: "John Doe"
     }
   },
   {
@@ -90,13 +96,14 @@ const mockSessions: Session[] = [
     status: "pending",
     printCount: 1,
     images: [
-      "https://images.unsplash.com/photo-1465101178521-c1a9136a3b99?w=800&h=600&fit=crop",
-      "https://images.unsplash.com/photo-1519125323398-675f0ddb6308?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1488972685288-c3fd157d7c7a?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1441057206919-63d19fac2369?w=800&h=600&fit=crop",
     ],
     customerDetails: {
       name: "Tech Solutions Inc",
       location: "Office Building",
-      date: "2024-07-05"
+      date: "2024-07-05",
+      photographer: "Jane Smith"
     }
   }
 ];
@@ -112,12 +119,11 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string>("");
-  const [sessions, setSessions] = useState<Session[]>(() => {
-    const saved = localStorage.getItem('sessions');
-    return saved ? JSON.parse(saved) : mockSessions;
-  });
+  const [selectedPhotographer, setSelectedPhotographer] = useState<string>(""); // Added state for selectedPhotographer
+  const [sessions, setSessions] = useState<Session[]>(mockSessions);
   const [zoom, setZoom] = useState(1);
-  const [cart, setCart] = useState<{ sessionId: string; photoIndex: number }[]>([]);
+  const { cartItems, addToCart } = useCart();
+  const navigate = useNavigate();
   
   // Warning dialog states
   const [showSessionDeleteDialog, setShowSessionDeleteDialog] = useState(false);
@@ -131,8 +137,28 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
   const [showPhotoEditor, setShowPhotoEditor] = useState(false);
   const [selectedPhotos, setSelectedPhotos] = useState<{ [sessionId: string]: number[] }>({});
 
+  useEffect(() => {
+    const stored = localStorage.getItem("orderedSessions");
+    if (stored) {
+      const orderedIds = JSON.parse(stored);
+      setSessions(prev => prev.map(session =>
+        orderedIds.includes(session.id)
+          ? { ...session, status: "ready" }
+          : session
+      ));
+    }
+  }, []);
+
+  useEffect(() => {
+    // Keep localStorage in sync if sessions change
+    const orderedIds = sessions.filter(s => s.status === "ready").map(s => s.id);
+    localStorage.setItem("orderedSessions", JSON.stringify(orderedIds));
+  }, [sessions]);
+
   const handleLogout = () => {
-    window.location.reload();
+    localStorage.removeItem("currentUser");
+    localStorage.removeItem("orderedSessions");
+    window.location.href = "/";
   };
 
   // When logo is clicked, go back to last session (if any), else fallback to first session
@@ -151,7 +177,8 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
                          session.customerDetails.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesDate = !selectedDate || session.date === selectedDate;
     const matchesStatus = !selectedStatus || session.status === selectedStatus;
-    return matchesSearch && matchesDate && matchesStatus;
+    const matchesPhotographer = !selectedPhotographer || session.customerDetails?.photographer === selectedPhotographer;
+    return matchesSearch && matchesDate && matchesStatus && matchesPhotographer;
   });
 
   const nextImage = () => {
@@ -210,7 +237,8 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
   const getStatusColor = (status: string) => {
     const colors = {
       "pending": "bg-yellow-100 text-yellow-800 border-yellow-200",
-      "ordered": "bg-blue-100 text-blue-800 border-blue-200"
+      "ready": "bg-blue-100 text-blue-800 border-blue-200",
+      "completed": "bg-green-100 text-green-800 border-green-200"
     };
     return colors[status as keyof typeof colors] || "bg-gray-100 text-gray-800 border-gray-200";
   };
@@ -250,69 +278,87 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
   };
 
   const handleAddToCart = () => {
-    const cartItem = { sessionId: selectedSession.id, photoIndex: currentImageIndex };
-    const isAlreadyInCart = cart.some(item => 
-      item.sessionId === cartItem.sessionId && item.photoIndex === cartItem.photoIndex
-    );
-    
-    if (!isAlreadyInCart) {
-      setCart([...cart, cartItem]);
-      alert(`Added photo ${currentImageIndex + 1} from ${selectedSession.customerDetails.name} to cart`);
-    } else {
-      alert('This photo is already in your cart');
-    }
-  };
-
-  const handleGoToCart = () => {
-    if (cart.length === 0) {
-      setShowCartWarningDialog(true);
+    const imageUrl = selectedSession.images[currentImageIndex];
+    if (!imageUrl) return;
+    // Compose a CartItem
+    const cartItem = {
+      id: `${selectedSession.id}-${currentImageIndex}`,
+      name: `${selectedSession.name} - ${currentImageIndex + 1}`,
+      thumb: imageUrl,
+      editInfo: "", // Add edit info if available
+      printSizes: [
+        { label: "4x6", price: 2.99 },
+        { label: "6x8", price: 4.99 },
+      ],
+      selectedSize: "4x6",
+      quantity: 1,
+    };
+    // Prevent duplicate
+    if (cartItems.some(item => item.id === cartItem.id)) {
+      alert("This photo is already in your cart");
       return;
     }
-    setShowCartDialog(true);
+    addToCart(cartItem);
+    alert(`Added photo ${currentImageIndex + 1} from ${selectedSession.customerDetails.name} to cart`);
   };
 
-  const handleSaveEditedImage = (sessionId: string, arg1: number | string[], arg2?: string) => {
-    if (Array.isArray(arg1)) {
-      // arg1 is the new images array
-      const updatedSessions = sessions.map(session => {
-        if (session.id === sessionId) {
-          return { ...session, images: arg1 };
+  // Calculate the count of cart items (all sessions)
+  const totalCartCount = cartItems.length;
+
+  // Calculate total selected images across all sessions
+  const totalSelectedCount = Object.values(selectedPhotos).reduce((sum, arr) => sum + arr.length, 0);
+
+  const handleProceedToCart = () => {
+    // For each selected photo in each session, add to cart if not already present
+    Object.entries(selectedPhotos).forEach(([sessionId, indices]) => {
+      const session = sessions.find(s => s.id === sessionId);
+      if (!session) return;
+      indices.forEach(index => {
+        const imageUrl = session.images[index];
+        if (!imageUrl) return;
+        const cartItem = {
+          id: `${session.id}-${index}`,
+          name: `${session.name} - ${index + 1}`,
+          thumb: imageUrl,
+          editInfo: "", // Add edit info if available
+          printSizes: [
+            { label: "4x6", price: 2.99 },
+            { label: "6x8", price: 4.99 },
+          ],
+          selectedSize: "4x6",
+          quantity: 1,
+        };
+        if (!cartItems.some(item => item.id === cartItem.id)) {
+          addToCart(cartItem);
         }
-        return session;
       });
-      setSessions(updatedSessions);
-      if (selectedSession.id === sessionId) {
-        setSelectedSession({ ...selectedSession, images: arg1 });
-      }
-    } else {
-      // arg1 is imageIndex, arg2 is dataURL
-      const imageIndex = arg1;
-      const dataURL = arg2;
-      const updatedSessions = sessions.map(session => {
+    });
+    navigate("/cart");
+  };
+
+  // Add this function after the other handler functions
+  const handleSaveEditedImage = (sessionId: string, imageIndex: number, editedImageData: string) => {
+    setSessions(prevSessions => 
+      prevSessions.map(session => {
         if (session.id === sessionId) {
           const updatedImages = [...session.images];
-          updatedImages[imageIndex] = dataURL!;
+          updatedImages[imageIndex] = editedImageData;
           return { ...session, images: updatedImages };
         }
         return session;
-      });
-      setSessions(updatedSessions);
-      if (selectedSession.id === sessionId) {
-        const updatedImages = [...selectedSession.images];
-        updatedImages[imageIndex] = dataURL!;
-        setSelectedSession({ ...selectedSession, images: updatedImages });
+      })
+    );
+    
+    // Update the selected session if it's the one being edited
+    setSelectedSession(prevSession => {
+      if (prevSession.id === sessionId) {
+        const updatedImages = [...prevSession.images];
+        updatedImages[imageIndex] = editedImageData;
+        return { ...prevSession, images: updatedImages };
       }
-    }
-    setShowPhotoEditor(false);
+      return prevSession;
+    });
   };
-
-  // Calculate the count of selected photos for the currently selected session
-  const currentSessionSelectedCount = (selectedPhotos[selectedSession.id] || []).length;
-
-  // Save sessions to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem('sessions', JSON.stringify(sessions));
-  }, [sessions]);
 
   return (
     <div className="h-screen bg-gradient-to-br from-green-50 to-emerald-100 dark:from-slate-900 dark:to-slate-800 flex flex-col overflow-hidden">
@@ -325,7 +371,8 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
           title="Back"
         >
           <ChevronLeft className="h-6 w-6 invisible" />
-          <span className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">Photo Kiosk</span>
+          <img src="/m2-logo.jpg" alt="M2 Photography Logo" className="w-8 h-8 object-contain rounded mr-2" />
+          <span className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">M2 Photography</span>
         </button>
         
         <div className="flex items-center gap-4 lg:gap-8">
@@ -369,20 +416,38 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
             />
           </div>
 
-          {/* Status Filter */}
-          <div className="mb-6 relative">
-            <select
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-              className="w-full p-2 border border-border rounded-md bg-background appearance-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="">All Status</option>
-              <option value="pending">Pending</option>
-              <option value="ordered">Ordered</option>
-            </select>
-            <span className="pointer-events-none absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-              <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><path d="M6 8l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            </span>
+          {/* Status and Photographer Filters Row */}
+          <div className="mb-6 flex gap-2 items-center">
+            <div className="relative w-28">
+              <select
+                value={selectedStatus}
+                onChange={(e) => setSelectedStatus(e.target.value)}
+                className="w-full p-2 border border-border rounded-md bg-background appearance-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="ready">Ready</option>
+                <option value="completed">Completed</option>
+              </select>
+              <span className="pointer-events-none absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><path d="M6 8l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </span>
+            </div>
+            <div className="relative w-36">
+              <select
+                value={selectedPhotographer || ''}
+                onChange={(e) => setSelectedPhotographer(e.target.value)}
+                className="w-full p-2 border border-border rounded-md bg-background appearance-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Photographer</option>
+                {Array.from(new Set(sessions.map(s => s.customerDetails?.photographer || ''))).filter(Boolean).map(name => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </select>
+              <span className="pointer-events-none absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><path d="M6 8l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </span>
+            </div>
           </div>
 
           {/* Sessions List - Scrollable */}
@@ -391,7 +456,7 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
               <div
                 key={session.id}
                 onClick={() => handleSessionSelect(session)}
-                className={`p-3 rounded-lg cursor-pointer transition-all hover:scale-105 min-w-0 max-w-full
+                className={`p-3 rounded-lg cursor-pointer transition-all hover:scale-90 min-w-0 max-w-full
                   ${selectedSession.id === session.id
                     ? "bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-900 dark:to-emerald-900 border border-green-300 shadow-md"
                     : "bg-muted/50 hover:bg-muted border border-transparent"}
@@ -403,9 +468,15 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
                     {getSessionIcon(session.type)}
                   </div>
                   <div className="flex-1 min-w-0 max-w-full">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
                       <h3 className="font-medium text-sm truncate max-w-full">{session.customerDetails.name}</h3>
-                      <span className={`text-xs px-2 py-1 rounded-full border ${getStatusColor(session.status)}`}>{session.status}</span>
+                      {/*
+                        // To show the session status badge again, uncomment the line below:
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full border font-semibold text-xs shadow-sm ${getStatusColor(session.status)}`}
+                          style={{ minWidth: 70, justifyContent: 'center', letterSpacing: '0.01em' }}>
+                          {session.status}
+                        </span>
+                        */}
                     </div>
                     <p className="text-xs text-muted-foreground font-medium">{session.date}</p>
                   </div>
@@ -416,7 +487,7 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
                       e.stopPropagation();
                       handleDeleteSession(session.id);
                     }}
-                    className="p-1 h-auto hover:bg-red-100 hover:text-red-600 transition-colors flex-shrink-0"
+                    className="p-1 h-auto hover:bg-red-100 hover:text-red-600 transition-colors flex-shrink-0 ml-2"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -435,7 +506,10 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
               <div className="text-center mb-3">
                 <div className="flex items-center justify-center gap-2 mb-1">
                   <h2 className="text-lg font-bold text-slate-800 dark:text-white">{selectedSession.customerDetails.name}</h2>
+                  {/*
+                  // To show the session status badge again, uncomment the line below:
                   <span className={`text-sm px-3 py-1 rounded-full border ${getStatusColor(selectedSession.status)}`}>{selectedSession.status}</span>
+                  */}
                 </div>
                 <p className="text-sm text-slate-600 dark:text-slate-300 text-center">{selectedSession.date}</p>
               </div>
@@ -552,18 +626,18 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
                   return (
                     <div
                       key={index}
-                      className={`relative rounded-lg overflow-hidden border-2 transition-all duration-200 ${
+                      className={`relative rounded-lg overflow-hidden transition-all duration-200 ${
                         isSelected
-                          ? "border-green-400 bg-green-50 ring-1 ring-green-200"
-                          : "border-gray-200 bg-white shadow"
+                          ? "ring-2 ring-blue-400 bg-blue-50"
+                          : "bg-white"
                       }`}
+                      onClick={() => setCurrentImageIndex(index)}
                     >
                       {/* Static tick box for selection */}
                       <input
                         type="checkbox"
                         checked={isSelected}
-                        onChange={(e) => {
-                          e.stopPropagation();
+                        onChange={() => {
                           setSelectedPhotos((prev) => {
                             const current = prev[selectedSession.id] || [];
                             if (current.includes(index)) {
@@ -578,11 +652,8 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
                         className="absolute top-1 left-1 z-10 w-5 h-5 accent-green-500 bg-white border border-gray-300 rounded focus:ring-2 focus:ring-green-400 cursor-pointer"
                         style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}
                       />
-                      {/* 4:3 aspect ratio wrapper, object-cover for gallery look */}
-                      <div
-                        className="w-full h-24 lg:h-32 aspect-[4/3] flex items-center justify-center rounded-lg overflow-hidden relative cursor-pointer"
-                        onClick={() => setCurrentImageIndex(index)}
-                      >
+                      {/* Square aspect ratio wrapper, object-cover for gallery look */}
+                      <div className="w-full h-24 lg:h-32 aspect-square flex items-center justify-center rounded-lg overflow-hidden relative">
                         <img
                           src={image}
                           alt={`Thumbnail ${index + 1}`}
@@ -697,7 +768,7 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
               <AlertDialogTitle>Selected Photos in This Session</AlertDialogTitle>
               <AlertDialogDescription>
                 {(() => {
-                  const currentSessionCart = cart.filter(item => item.sessionId === selectedSession.id);
+                  const currentSessionCart = cartItems.filter(item => item.id.startsWith(`${selectedSession.id}-`));
                   if (currentSessionCart.length === 0) {
                     return <span>No photos from this session are in your cart.</span>;
                   }
@@ -705,9 +776,9 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
                     <div className="flex flex-wrap gap-3 mt-2">
                       {currentSessionCart.map((item, idx) => (
                         <img
-                          key={item.photoIndex}
-                          src={selectedSession.images[item.photoIndex]}
-                          alt={`Selected photo ${item.photoIndex + 1}`}
+                          key={item.id}
+                          src={item.thumb}
+                          alt={`Selected photo ${idx + 1}`}
                           className="w-20 h-16 object-cover rounded shadow border"
                         />
                       ))}
@@ -736,12 +807,13 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
 
       {/* Add Proceed to Cart button fixed at bottom right */}
       <button
-        onClick={handleGoToCart}
+        onClick={handleProceedToCart}
         className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-bold rounded-full shadow-lg text-lg transition-all"
         style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.18)' }}
+        disabled={totalSelectedCount === 0}
       >
         <ShoppingCart className="h-6 w-6" />
-        Proceed to Cart ({currentSessionSelectedCount})
+        Proceed to Cart ({totalSelectedCount})
       </button>
 
       {/* Photo Editor */}

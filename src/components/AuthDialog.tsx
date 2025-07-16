@@ -126,22 +126,9 @@ function AuthDialog({ onLogin }: AuthDialogProps) {
 		return (
 			<div className="min-h-screen flex flex-col items-center justify-center bg-background">
 				<div className="flex flex-col items-center mb-8">
-					<div className="flex size-20 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-purple-500 mb-4">
-						<svg
-							className="stroke-white"
-							xmlns="http://www.w3.org/2000/svg"
-							width="40"
-							height="40"
-							viewBox="0 0 32 32"
-							aria-hidden="true"
-						>
-							<circle cx="16" cy="16" r="12" fill="none" strokeWidth="4" />
-							<rect x="10" y="14" width="12" height="8" rx="2" fill="white" />
-							<circle cx="16" cy="18" r="2" fill="#6366f1" />
-						</svg>
-					</div>
+					<img src="/m2-logo.jpg" alt="M2 Photography Logo" className="w-40 h-40 object-contain rounded-2xl mb-4 shadow" />
 					<h1 className="text-3xl font-extrabold text-center mb-2 tracking-tight">
-						PhotoKiosk Pro
+						M2 Photography
 					</h1>
 					<p className="text-base text-muted-foreground text-center mb-6">
 						Professional Studio Management System
