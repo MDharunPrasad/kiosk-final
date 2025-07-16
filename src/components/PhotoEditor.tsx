@@ -970,8 +970,8 @@ export function PhotoEditor({
 
     if (frameRect) {
       canvas.add(frameRect);
-      canvas.sendToBack(frameRect);
-      canvas.bringToFront(mainImage);
+      canvas.sendToBack(frameRect); // Frame always behind
+      canvas.bringToFront(mainImage); // Image always above frame
       canvas.renderAll();
       setSelectedFrame(frameType);
       setEditedImages(prev => new Set(prev).add(selectedImageIndex));
@@ -1063,6 +1063,8 @@ export function PhotoEditor({
     }
 
     canvas.add(borderRect);
+    // Always bring main image to front after adding border
+    canvas.bringToFront(mainImage);
     canvas.renderAll();
     setSelectedBorder(borderType);
     setEditedImages(prev => new Set(prev).add(selectedImageIndex));
