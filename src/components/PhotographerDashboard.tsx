@@ -465,7 +465,7 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
                     {getSessionIcon(session.type)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-medium text-sm truncate">{session.customerDetails.name}</h3>
+                    <h3 className="font-medium text-sm truncate">{session.name}</h3>
                     <p className="text-xs text-muted-foreground font-medium">{session.date}</p>
                   </div>
                   <Button
@@ -535,7 +535,7 @@ export function PhotographerDashboard({ username }: PhotographerDashboardProps) 
                 <div className="flex-1 p-4 flex flex-col relative min-w-0">
                   {/* Customer name and date */}
                   <div className="text-center mb-3">
-                    <h2 className="text-lg font-bold text-slate-800 dark:text-white">{selectedSession.customerDetails.name}</h2>
+                    <h2 className="text-lg font-bold text-slate-800 dark:text-white">{selectedSession.name}</h2>
                     <p className="text-sm text-slate-600 dark:text-slate-300">{selectedSession.date}</p>
                   </div>
                   
