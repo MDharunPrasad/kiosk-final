@@ -100,6 +100,8 @@ export function PhotoEditor({
   const [editedImages, setEditedImages] = useState<Set<number>>(
     new Set(session.editedImages || [])
   );
+  // Add frameSize state
+  const [frameSize, setFrameSize] = useState(20);
 
   // Adjustment state
   const [brightness, setBrightness] = useState(0);
@@ -408,12 +410,14 @@ export function PhotoEditor({
           
           fabric.Image.fromURL(croppedDataURL, (newImg: any) => {
             canvas.clear();
-            
+
+            // Remove any existing frame or border objects
+            // (in case they were present before cropping)
+            canvas.getObjects().filter((obj: any) => obj.id === 'frame' || obj.id === 'border' || obj.id === 'innerBorder').forEach((obj: any) => canvas.remove(obj));
+
             const canvasWidth = canvas.getWidth();
             const canvasHeight = canvas.getHeight();
-            const newScale = Math.min(canvasWidth / newImg.width!, canvasHeight / newImg.height!) * 0.8;
-            
-            newImg.scale(newScale);
+            // Center the cropped image on the canvas, keep its cropped size and aspect ratio
             newImg.set({
               left: canvasWidth / 2,
               top: canvasHeight / 2,
@@ -423,13 +427,13 @@ export function PhotoEditor({
               evented: false,
               id: 'mainImage'
             });
-            
+
             canvas.add(newImg);
             canvas.renderAll();
-            
+
             originalImageRef.current = newImg;
             setIsCropping(false);
-            
+
             // After applying crop, save the image
             setTimeout(() => {
               const finalDataURL = canvas.toDataURL({
@@ -882,7 +886,7 @@ export function PhotoEditor({
 
     // Get the exact bounds of the main image
     const imageBounds = mainImage.getBoundingRect(true);
-    const frameWidth = 20;
+    const frameWidth = frameSize; // Use state
     
     let frameRect;
     
@@ -1489,14 +1493,6 @@ export function PhotoEditor({
                             })}
                           </div>
                           
-                          {selectedFilter !== 'none' && (
-                            <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                              <p className="text-xs text-blue-700 dark:text-blue-300">
-                                <Filter className="h-3 w-3 inline mr-1" />
-                                Filter "{filterOptions.find(f => f.value === selectedFilter)?.label}" applied
-                              </p>
-                            </div>
-                          )}
                         </div>
                       )}
 
@@ -1631,10 +1627,8 @@ export function PhotoEditor({
                                   {[
                                     { name: 'Black', value: '#000000' },
                                     { name: 'White', value: '#FFFFFF' },
-                                    { name: 'Brown', value: '#8B4513' },
                                     { name: 'Red', value: '#FF0000' },
                                     { name: 'Blue', value: '#0074D9' },
-                                    { name: 'Green', value: '#2ECC40' },
                                     { name: 'Yellow', value: '#FFDC00' },
                                   ].map((swatch) => (
                                     <button
@@ -1722,7 +1716,26 @@ export function PhotoEditor({
                 </div>
               )}
             </div>
-            
+            {/* Frame Size Slider - only show if a frame is selected */}
+            {selectedFrame !== 'none' && (
+              <div className="w-full max-w-xs mt-4 flex flex-col items-center">
+                <label className="text-sm font-medium mb-1">Frame Size: {frameSize}px</label>
+                <Input
+                  type="range"
+                  min="-50"
+                  max="100"
+                  value={frameSize}
+                  onChange={e => {
+                    setFrameSize(Number(e.target.value));
+                    if (selectedFrame !== 'none') {
+                      applyFrame(selectedFrame);
+                    }
+                  }}
+                  className="w-full"
+                  disabled={!isImageLoaded}
+                />
+              </div>
+            )}
             {/* Save Changes and Reset Buttons below canvas */}
             <div className="mt-4 flex gap-3">
               <Button 
