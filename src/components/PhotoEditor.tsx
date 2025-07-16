@@ -982,6 +982,13 @@ export function PhotoEditor({
     // Remove existing border(s)
     canvas.getObjects().filter((obj: any) => obj.id === 'border' || obj.id === 'innerBorder').forEach((obj: any) => canvas.remove(obj));
 
+    if (borderType === 'none') {
+      setSelectedBorder('none');
+      canvas.renderAll();
+      setEditedImages(prev => new Set(prev).add(selectedImageIndex));
+      return;
+    }
+
     const mainImage = canvas.getObjects().find((obj: any) => obj.id === 'mainImage');
     if (!mainImage) return;
 
@@ -1142,6 +1149,9 @@ export function PhotoEditor({
       newSet.delete(selectedImageIndex);
       return newSet;
     });
+    setTimeout(() => {
+      syncToolStateWithCanvas();
+    }, 100);
   };
 
   const confirmDeleteImage = () => {
@@ -1228,6 +1238,7 @@ export function PhotoEditor({
     setRedoStack(r => [...r, fabricCanvasRef.current!.toJSON()]);
     fabricCanvasRef.current.loadFromJSON(prevState, () => {
       fabricCanvasRef.current.renderAll();
+      syncToolStateWithCanvas();
     });
   };
 
@@ -1239,7 +1250,25 @@ export function PhotoEditor({
     setUndoStack(u => [...u, fabricCanvasRef.current!.toJSON()]);
     fabricCanvasRef.current.loadFromJSON(nextState, () => {
       fabricCanvasRef.current.renderAll();
+      syncToolStateWithCanvas();
     });
+  };
+
+  // Helper to sync React tool state with canvas objects
+  const syncToolStateWithCanvas = () => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+    // Border
+    const hasBorder = canvas.getObjects().some((obj: any) => obj.id === 'border');
+    setSelectedBorder(hasBorder ? 'solid' : 'none');
+    // Frame
+    const hasFrame = canvas.getObjects().some((obj: any) => obj.id === 'frame');
+    setSelectedFrame(hasFrame ? 'classic' : 'none');
+    // Filter (not easily detectable, so reset to 'none')
+    setSelectedFilter('none');
+    // Cropping
+    const hasCrop = canvas.getObjects().some((obj: any) => obj.id === 'cropRect');
+    setIsCropping(hasCrop);
   };
 
   if (!fabricLoaded) {
