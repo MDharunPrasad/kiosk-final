@@ -258,7 +258,7 @@ const handleAddMorePhotos = async (event: React.ChangeEvent<HTMLInputElement>) =
 };
 
  // Loading state
-  if (isLoadingSessions) {
+  if (isLoadingSessions||isLoadingPhotos) {
     return (
       <div className="h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center">
         <div className="text-center">
@@ -297,9 +297,10 @@ const handleAddMorePhotos = async (event: React.ChangeEvent<HTMLInputElement>) =
 
       <div className="flex flex-1 overflow-hidden h-full">
         {/* Left Sidebar */}
+        
         <div className="w-80 bg-white dark:bg-slate-800 border-r border-border p-6 flex flex-col" style={{ height: "calc(100vh - 80px)" }}>
           <h1 className="text-2xl font-bold mb-6">Sessions</h1>
-          <div className="relative mb-6">
+          <div className="relative mb-6 w-fit">
             <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               type="date"
