@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Calendar, Search, ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
+import { Calendar, Search, ChevronLeft, ChevronRight, Plus, Trash2, Loader2 } from "lucide-react";
 import { CreateSessionForm } from "./CreateSessionForm";
 import {
   AlertDialog,
@@ -256,6 +256,18 @@ const handleAddMorePhotos = async (event: React.ChangeEvent<HTMLInputElement>) =
     console.error('Error in confirmDeletePhoto:', error);
   }
 };
+
+ // Loading state
+  if (isLoadingSessions) {
+    return (
+      <div className="h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p className="text-lg">Loading sessions...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-900 dark:to-slate-800 flex flex-col overflow-hidden">
