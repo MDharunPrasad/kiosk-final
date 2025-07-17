@@ -4,15 +4,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Upload, X, ArrowLeft } from "lucide-react";
-
+import { createSession, deleteSession } from "@/apis/sessions";
+import { createPhoto } from "@/apis/photos";
 interface CreateSessionFormProps {
   onCancel: () => void;
   onSessionCreated: (session: any) => void;
+  fetchSessions: () => void;
 }
 
-export function CreateSessionForm({ onCancel, onSessionCreated }: CreateSessionFormProps) {
+
+export function CreateSessionForm({ onCancel, onSessionCreated,fetchSessions }: CreateSessionFormProps) {
   const [customerName, setCustomerName] = useState("");
-  const [location, setLocation] = useState("");
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -25,24 +27,26 @@ export function CreateSessionForm({ onCancel, onSessionCreated }: CreateSessionF
     setUploadedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleCreateSession = () => {
-    if (!customerName || !location || uploadedFiles.length === 0) {
+  const handleCreateSession = async () => {
+    if (!customerName|| uploadedFiles.length === 0) {
       alert("Please fill in all fields and upload at least one photo");
       return;
     }
 
-    const newSession = {
-      customerName,
-      location,
-      photos: uploadedFiles,
-      date: new Date().toISOString().split('T')[0]
-    };
-
-    onSessionCreated(newSession);
+    const photographer_id="6"
+     const response = await createSession(photographer_id,customerName)
+     if (response.id){
+      try {
+        await createPhoto(response.id,uploadedFiles)
+        await fetchSessions()
+      } catch (error) {
+        deleteSession(response.id)
+        throw new Error('Failed to create session.')
+      }
+     }
     
     // Reset form
     setCustomerName("");
-    setLocation("");
     setUploadedFiles([]);
   };
 
@@ -86,27 +90,7 @@ export function CreateSessionForm({ onCancel, onSessionCreated }: CreateSessionF
             </div>
 
             {/* Location */}
-            <div className="space-y-3">
-              <Label htmlFor="location" className="text-lg font-medium">
-                Location
-              </Label>
-              <Select value={location} onValueChange={setLocation}>
-                <SelectTrigger className="w-full h-12 text-base">
-                  <SelectValue placeholder="Select a location" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="studio">Studio</SelectItem>
-                  <SelectItem value="central-park">Central Park</SelectItem>
-                  <SelectItem value="riverside-gardens">Riverside Gardens</SelectItem>
-                  <SelectItem value="university-campus">University Campus</SelectItem>
-                  <SelectItem value="office-building">Office Building</SelectItem>
-                  <SelectItem value="beach">Beach</SelectItem>
-                  <SelectItem value="mountain-view">Mountain View</SelectItem>
-                  <SelectItem value="downtown">Downtown</SelectItem>
-                  <SelectItem value="other">Other Location</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+           
 
             {/* Session Photos */}
             <div className="space-y-4 mt-6">
