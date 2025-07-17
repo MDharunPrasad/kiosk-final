@@ -1,7 +1,7 @@
 import { ApiSession } from "@/types/types";
 import { BASE_URL } from "@/constants";
 
-async function searchSessions(date?:string,limit?:string,photographer_id?:string): Promise<ApiSession[]> {
+async function searchSessions(date?:string,photographer_id?:string, limit?:string): Promise<ApiSession[]> {
   try {const params = new URLSearchParams();
     if (date) params.append('date', date);
     if (limit) params.append('limit', limit);
