@@ -886,20 +886,26 @@ export function PhotoEditor({
   const applyFrame = (frameType: string) => {
     pushUndo();
     const canvas = fabricCanvasRef.current;
-    if (!canvas || !fabric || !isImageLoaded) return;
-
+    if (!canvas || !fabric || !isImageLoaded) {
+      console.error('Cannot apply frame: Canvas not ready or main image missing.');
+      alert('Cannot apply frame: Canvas not ready or main image missing. Try resetting the image.');
+      return;
+    }
     // Remove existing frame(s)
     canvas.getObjects().filter((obj: any) => obj.id === 'frame').forEach((obj: any) => canvas.remove(obj));
-
+    // Remove any extra borders if present
+    canvas.getObjects().filter((obj: any) => obj.id === 'border' || obj.id === 'innerBorder').forEach((obj: any) => canvas.remove(obj));
     if (frameType === 'none') {
       setSelectedFrame('none');
       canvas.renderAll();
       return;
     }
-
     const mainImage = canvas.getObjects().find((obj: any) => obj.id === 'mainImage');
-    if (!mainImage) return;
-
+    if (!mainImage) {
+      console.error('Cannot apply frame: Main image missing.');
+      alert('Cannot apply frame: Main image missing. Try resetting the image.');
+      return;
+    }
     // Get the exact bounds of the main image
     const imageBounds = mainImage.getBoundingRect(true);
     const frameWidth = frameSize; // Use state
@@ -991,24 +997,29 @@ export function PhotoEditor({
 
   // Border functions (improved centering)
   const applyBorder = (borderType: string) => {
-    // Ensure pushUndo is called BEFORE any canvas mutation
     pushUndo();
     const canvas = fabricCanvasRef.current;
-    if (!canvas || !fabric || !isImageLoaded) return;
-
+    if (!canvas || !fabric || !isImageLoaded) {
+      console.error('Cannot apply border: Canvas not ready or main image missing.');
+      alert('Cannot apply border: Canvas not ready or main image missing. Try resetting the image.');
+      return;
+    }
     // Remove existing border(s)
     canvas.getObjects().filter((obj: any) => obj.id === 'border' || obj.id === 'innerBorder').forEach((obj: any) => canvas.remove(obj));
-
+    // Remove any extra frames if present
+    canvas.getObjects().filter((obj: any) => obj.id === 'frame').forEach((obj: any) => canvas.remove(obj));
     if (borderType === 'none') {
       setSelectedBorder('none');
       canvas.renderAll();
       setEditedImages(prev => new Set(prev).add(selectedImageIndex));
       return;
     }
-
     const mainImage = canvas.getObjects().find((obj: any) => obj.id === 'mainImage');
-    if (!mainImage) return;
-
+    if (!mainImage) {
+      console.error('Cannot apply border: Main image missing.');
+      alert('Cannot apply border: Main image missing. Try resetting the image.');
+      return;
+    }
     // Get the exact bounds of the main image
     const imageBounds = mainImage.getBoundingRect(true);
     // Use the center of the image bounds for the border
@@ -1316,6 +1327,17 @@ export function PhotoEditor({
     };
   }
 
+  // Helper to ensure canvas is valid after undo/redo
+  const ensureCanvasValid = async () => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+    const mainImage = canvas.getObjects().find((obj: any) => obj.id === 'mainImage');
+    if (!mainImage && currentImages[selectedImageIndex]) {
+      await loadImageToCanvas(currentImages[selectedImageIndex], true);
+      setIsImageLoaded(true);
+    }
+  };
+
   // Undo handler
   const handleUndo = () => {
     if (undoStack.length === 0 || !fabricCanvasRef.current) return;
@@ -1324,29 +1346,23 @@ export function PhotoEditor({
     setUndoStack(undoStack.slice(0, -1));
     const currentState = JSON.parse(JSON.stringify(fabricCanvasRef.current.toJSON()));
     setRedoStack(r => [...r, currentState]);
-    console.log('Undo: loading prevState', prevState);
-    const hasMainImageInState = prevState.objects && prevState.objects.some((obj: any) => obj.id === 'mainImage');
-    if (hasMainImageInState) {
-      fabricCanvasRef.current.loadFromJSON(prevState, () => {
-        fabricCanvasRef.current.renderAll();
-        syncToolStateWithCanvas();
-        setIsImageLoaded(true);
+    fabricCanvasRef.current.loadFromJSON(prevState, () => {
+      fabricCanvasRef.current.renderAll();
+      const mainImage = fabricCanvasRef.current.getObjects().find((obj: any) => obj.id === 'mainImage');
+      if (!mainImage) {
+        alert('Undo failed: Main image missing or state corrupted. The editor will reset.');
+        if (currentImages[selectedImageIndex]) {
+          loadImageToCanvas(currentImages[selectedImageIndex]);
+        }
+        setUndoStack([]);
+        setRedoStack([]);
         setIsRestoringState(false);
-      });
-    } else {
-      if (currentImages[selectedImageIndex]) {
-        loadImageToCanvas(currentImages[selectedImageIndex], true).then(() => {
-          setTimeout(() => {
-            fabricCanvasRef.current.loadFromJSON(prevState, () => {
-              fabricCanvasRef.current.renderAll();
-              syncToolStateWithCanvas();
-              setIsImageLoaded(true);
-              setIsRestoringState(false);
-            });
-          }, 50);
-        });
+        return;
       }
-    }
+      syncToolStateWithCanvas();
+      setIsImageLoaded(true);
+      setIsRestoringState(false);
+    });
   };
 
   // Redo handler
@@ -1357,29 +1373,23 @@ export function PhotoEditor({
     setRedoStack(redoStack.slice(0, -1));
     const currentState = JSON.parse(JSON.stringify(fabricCanvasRef.current.toJSON()));
     setUndoStack(u => [...u, currentState]);
-    console.log('Redo: loading nextState', nextState);
-    const hasMainImageInState = nextState.objects && nextState.objects.some((obj: any) => obj.id === 'mainImage');
-    if (hasMainImageInState) {
-      fabricCanvasRef.current.loadFromJSON(nextState, () => {
-        fabricCanvasRef.current.renderAll();
-        syncToolStateWithCanvas();
-        setIsImageLoaded(true);
+    fabricCanvasRef.current.loadFromJSON(nextState, () => {
+      fabricCanvasRef.current.renderAll();
+      const mainImage = fabricCanvasRef.current.getObjects().find((obj: any) => obj.id === 'mainImage');
+      if (!mainImage) {
+        alert('Redo failed: Main image missing or state corrupted. The editor will reset.');
+        if (currentImages[selectedImageIndex]) {
+          loadImageToCanvas(currentImages[selectedImageIndex]);
+        }
+        setUndoStack([]);
+        setRedoStack([]);
         setIsRestoringState(false);
-      });
-    } else {
-      if (currentImages[selectedImageIndex]) {
-        loadImageToCanvas(currentImages[selectedImageIndex], true).then(() => {
-          setTimeout(() => {
-            fabricCanvasRef.current.loadFromJSON(nextState, () => {
-              fabricCanvasRef.current.renderAll();
-              syncToolStateWithCanvas();
-              setIsImageLoaded(true);
-              setIsRestoringState(false);
-            });
-          }, 50);
-        });
+        return;
       }
-    }
+      syncToolStateWithCanvas();
+      setIsImageLoaded(true);
+      setIsRestoringState(false);
+    });
   };
 
   if (!fabricLoaded) {
