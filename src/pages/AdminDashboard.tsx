@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { LogOut, User, Users, Camera, FileText, Settings, DollarSign, BarChart2, Home } from "lucide-react";
+import { LogOut, User, Users, Camera, FileText, Settings, DollarSign, BarChart2, Home, Edit, Trash2 } from "lucide-react";
 import { mockSessions } from "@/components/CounterStaffDashboard";
 import { BarChart, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, Bar } from "recharts";
 import { useTheme } from "next-themes";
@@ -82,6 +82,7 @@ function useAnimatedNumber(target: number, duration = 1000) {
 export default function AdminDashboard() {
   const [activeSection, setActiveSection] = useState("dashboard");
   const [modal, setModal] = useState<{ type: "session" | "order"; data: any } | null>(null);
+  const [showAddBundle, setShowAddBundle] = useState(false);
 
   const animatedSessions = useAnimatedNumber(kpiData.totalSessions);
   const animatedRevenue = useAnimatedNumber(kpiData.totalRevenue);
@@ -95,15 +96,25 @@ export default function AdminDashboard() {
 
   const isMobile = typeof window !== 'undefined' ? window.innerWidth < 768 : false;
 
+  // Patch: Safe import for mockSessions
+  let mockSessions: any[] = [];
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    mockSessions = require("@/components/CounterStaffDashboard").mockSessions || [];
+  } catch (e) {
+    mockSessions = [];
+  }
+
   // Custom Legend for Sessions Distribution
-  const renderSessionsLegend = (props) => {
-    const { payload } = props;
+  const renderSessionsLegend = (props: any) => {
+    const { payload } = props || {};
+    if (!payload || !Array.isArray(payload)) return null;
     return (
       <div className={`flex ${isMobile ? 'flex-wrap justify-center' : 'flex-col items-start'} gap-2 mt-4`} style={{ maxWidth: isMobile ? '100%' : 120 }}>
-        {payload.map((entry, idx) => (
-          <div key={entry.value} className="flex items-center gap-2 text-xs font-semibold" style={{ minWidth: 80 }}>
-            <span style={{ background: entry.color, width: 12, height: 12, borderRadius: 6, display: 'inline-block' }}></span>
-            <span style={{ color: entry.color }}>{entry.value}</span>
+        {payload.map((entry: any, idx: number) => (
+          <div key={entry?.value || idx} className="flex items-center gap-2 text-xs font-semibold" style={{ minWidth: 80 }}>
+            <span style={{ background: entry?.color, width: 12, height: 12, borderRadius: 6, display: 'inline-block' }}></span>
+            <span style={{ color: entry?.color }}>{entry?.value}</span>
           </div>
         ))}
       </div>
@@ -111,14 +122,14 @@ export default function AdminDashboard() {
   };
 
   // Simulate filtering for sessions/orders
-  const filteredSessions = mockSessions.filter(s =>
+  const filteredSessions = (mockSessions || []).filter(s =>
     (!statusFilter || s.status === statusFilter) &&
     (!photographerFilter || s.customerDetails.photographer === photographerFilter)
   );
   const filteredOrders = mockOrders.filter(o =>
     !statusFilter || (statusFilter === "Paid" && o.status === "Paid") || (statusFilter === "Pending" && o.status === "Pending") || (statusFilter === "Refunded" && o.status === "Refunded")
   );
-  const photographers = Array.from(new Set(mockSessions.map(s => s.customerDetails.photographer).filter(Boolean)));
+  const photographers = Array.from(new Set((mockSessions || []).map(s => s.customerDetails.photographer).filter(Boolean)));
 
   function handleExport(type: "pdf" | "excel") {
     toast.success(`Exported as ${type.toUpperCase()}! (mock)`);
@@ -344,7 +355,7 @@ export default function AdminDashboard() {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredSessions.map(session => (
+                      {(filteredSessions || []).map(session => (
                         <tr key={session.id} className="border-b last:border-0 hover:bg-purple-50/30 dark:hover:bg-purple-900/10 transition">
                           <td className="py-4 font-medium">{session.name}</td>
                           <td className="py-4">{session.customerDetails.name}</td>
@@ -410,7 +421,7 @@ export default function AdminDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {mockSessions.map(session => (
+                  {(mockSessions || []).map(session => (
                     <tr key={session.id} className="border-b last:border-0">
                       <td className="py-2 font-medium">{session.name}</td>
                       <td className="py-2">{session.customerDetails.name}</td>
@@ -461,8 +472,76 @@ export default function AdminDashboard() {
               </table>
             </div>
           )}
+          {activeSection === "pricing" && (
+            <div className="w-full max-w-6xl mx-auto bg-gradient-to-br from-white via-purple-50 to-indigo-50 dark:from-slate-900 dark:via-purple-950 dark:to-indigo-950 rounded-2xl shadow-xl p-8 md:p-12 mt-4">
+              {/* KPI Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+                <div className="bg-white/80 dark:bg-slate-800/80 rounded-xl shadow-md p-6 flex flex-col items-start border border-purple-100 dark:border-slate-700">
+                  <span className="text-xs font-semibold text-purple-700 mb-2 flex items-center gap-2"><DollarSign className="w-4 h-4" /> Price per Image</span>
+                  <span className="text-3xl font-extrabold text-purple-900 dark:text-white">₹25.00</span>
+                </div>
+                <div className="bg-white/80 dark:bg-slate-800/80 rounded-xl shadow-md p-6 flex flex-col items-start border border-indigo-100 dark:border-slate-700">
+                  <span className="text-xs font-semibold text-indigo-700 mb-2 flex items-center gap-2"><BarChart2 className="w-4 h-4" /> Most Popular Bundle</span>
+                  <span className="text-3xl font-extrabold text-indigo-900 dark:text-white">10 Photos Pack</span>
+                </div>
+                <div className="bg-white/80 dark:bg-slate-800/80 rounded-xl shadow-md p-6 flex flex-col items-start border border-pink-100 dark:border-slate-700">
+                  <span className="text-xs font-semibold text-pink-700 mb-2 flex items-center gap-2"><Camera className="w-4 h-4" /> Total Bundles</span>
+                  <span className="text-3xl font-extrabold text-pink-900 dark:text-white">3</span>
+                </div>
+              </div>
+              {/* Bundle Offers Grid */}
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="font-semibold text-2xl text-purple-800 dark:text-purple-200">Bundle Offers</h2>
+                <Button className="bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-semibold shadow hover:scale-105 transition-all" onClick={() => setShowAddBundle(true)}>
+                  + Add New Bundle
+                </Button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {/* Example bundles, replace with real data if available */}
+                {[
+                  { name: "5 Photos Pack", images: 5, price: 100, perImage: 20, savings: 25, savingsPct: 20 },
+                  { name: "10 Photos Pack", images: 10, price: 180, perImage: 18, savings: 70, savingsPct: 28 },
+                  { name: "20 Photos Pack", images: 20, price: 320, perImage: 16, savings: 180, savingsPct: 36 },
+                ].map((bundle, idx) => (
+                  <div key={bundle.name} className="bg-white/90 dark:bg-slate-800/90 rounded-2xl shadow-lg p-6 border border-purple-100 dark:border-slate-700 flex flex-col gap-2 hover:shadow-2xl hover:scale-[1.03] transition-all relative">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="font-bold text-lg text-purple-800 dark:text-purple-200">{bundle.name}</span>
+                      <div className="flex gap-2">
+                        <Button size="icon" variant="ghost" className="hover:bg-indigo-100 dark:hover:bg-indigo-900" title="Edit Bundle"><Edit className="w-4 h-4 text-indigo-500" /></Button>
+                        <Button size="icon" variant="ghost" className="hover:bg-pink-100 dark:hover:bg-pink-900" title="Delete Bundle"><Trash2 className="w-4 h-4 text-pink-500" /></Button>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1 text-sm">
+                      <div>Images: <span className="font-semibold">{bundle.images}</span></div>
+                      <div>Price: <span className="font-semibold text-indigo-600 dark:text-indigo-300">₹{bundle.price}</span></div>
+                      <div>Per Image: <span className="font-semibold text-purple-600 dark:text-purple-300">₹{bundle.perImage}</span></div>
+                      <div>Savings: <span className="font-semibold text-green-600 dark:text-green-400">₹{bundle.savings} ({bundle.savingsPct}%)</span></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {/* Add/Edit Bundle Modal (mock, UI only) */}
+              {showAddBundle && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+                  <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-8 w-full max-w-md relative border border-purple-200 dark:border-slate-700">
+                    <button className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 text-3xl font-bold" onClick={() => setShowAddBundle(false)}>&times;</button>
+                    <h2 className="font-bold text-xl mb-4 text-purple-800 dark:text-purple-200">Add New Bundle</h2>
+                    <div className="flex flex-col gap-4">
+                      <input type="text" placeholder="Bundle Name" className="border rounded-lg px-4 py-2" />
+                      <input type="number" placeholder="Number of Images" className="border rounded-lg px-4 py-2" />
+                      <input type="number" placeholder="Total Price" className="border rounded-lg px-4 py-2" />
+                    </div>
+                    <div className="flex gap-4 mt-6 justify-end">
+                      <Button variant="outline" className="px-6 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-all" onClick={() => setShowAddBundle(false)}>Cancel</Button>
+                      <Button className="px-6 py-2 rounded-lg bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-semibold shadow hover:scale-105 transition-all">Save</Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
           {/* Placeholder for other sections */}
-          {!(activeSection === "dashboard" || activeSection === "sessions" || activeSection === "orders") && (
+          {!(activeSection === "dashboard" || activeSection === "sessions" || activeSection === "orders" || activeSection === "pricing") && (
             <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8 border border-purple-100 dark:border-slate-700 text-gray-500 text-center">Section coming soon...</div>
           )}
           {/* Modal for viewing details/photos */}
@@ -481,7 +560,7 @@ export default function AdminDashboard() {
                     <div className="mb-2"><span className="font-semibold">Status:</span> {modal.data.status}</div>
                     <div className="mb-2"><span className="font-semibold">Images:</span></div>
                     <div className="flex gap-2 flex-wrap">
-                      {modal.data.images.map((img: string, idx: number) => (
+                      {(modal.data.images || []).map((img: string, idx: number) => (
                         <img key={idx} src={img} alt="Session" className="w-20 h-20 object-cover rounded border" />
                       ))}
                     </div>
