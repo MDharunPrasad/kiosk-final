@@ -1,0 +1,507 @@
+import React, { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { LogOut, User, Users, Camera, FileText, Settings, DollarSign, BarChart2, Home } from "lucide-react";
+import { mockSessions } from "@/components/CounterStaffDashboard";
+import { BarChart, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, Bar } from "recharts";
+import { useTheme } from "next-themes";
+import { Calendar } from "lucide-react";
+import { toast } from "sonner";
+import { useMediaQuery } from "@uidotdev/usehooks";
+
+// Mock order data
+const mockOrders = [
+  { id: "ORD-1001", customer: "Emma Johnson", date: "2024-07-14", amount: 125.00, status: "Paid" },
+  { id: "ORD-1002", customer: "Michael Smith", date: "2024-07-13", amount: 81.50, status: "Pending" },
+  { id: "ORD-1003", customer: "Sarah Williams", date: "2024-07-12", amount: 210.70, status: "Paid" },
+  { id: "ORD-1004", customer: "David Brown", date: "2024-07-11", amount: 65.20, status: "Refunded" },
+  { id: "ORD-1005", customer: "Jessica Miller", date: "2024-07-10", amount: 145.00, status: "Paid" },
+];
+
+const SIDEBAR_LINKS = [
+  { label: "Dashboard", key: "dashboard", icon: <Home className="w-5 h-5 mr-2" /> },
+  { label: "Sessions", key: "sessions", icon: <Camera className="w-5 h-5 mr-2" /> },
+  { label: "Orders", key: "orders", icon: <FileText className="w-5 h-5 mr-2" /> },
+  { label: "Manage Photographers", key: "photographers", icon: <User className="w-5 h-5 mr-2" /> },
+  { label: "Manage Operators", key: "operators", icon: <Users className="w-5 h-5 mr-2" /> },
+  { label: "Pricing", key: "pricing", icon: <DollarSign className="w-5 h-5 mr-2" /> },
+  { label: "Generate Reports", key: "reports", icon: <BarChart2 className="w-5 h-5 mr-2" /> },
+  { label: "Settings", key: "settings", icon: <Settings className="w-5 h-5 mr-2" /> },
+];
+
+// Mock KPI data
+const kpiData = {
+  totalSessions: mockSessions.length,
+  totalRevenue: 24568,
+  totalCustomers: 856,
+  avgOrderValue: 86.42,
+};
+
+// Mock chart data
+const revenueTrendData = [
+  { week: "Week 1", revenue: 7500 },
+  { week: "Week 2", revenue: 8200 },
+  { week: "Week 3", revenue: 7900 },
+  { week: "Week 4", revenue: 8100 },
+];
+const sessionsPieData = [
+  { name: "Monday", value: 120 },
+  { name: "Tuesday", value: 140 },
+  { name: "Wednesday", value: 180 },
+  { name: "Thursday", value: 160 },
+  { name: "Friday", value: 200 },
+  { name: "Weekend", value: 448 },
+];
+const orderStatusPieData = [
+  { name: "Paid", value: 785 },
+  { name: "Pending", value: 152 },
+  { name: "Refunded", value: 63 },
+];
+const pieColors = ["#8b5cf6", "#6366f1", "#f472b6", "#22d3ee", "#facc15", "#34d399", "#f87171"];
+
+// Animated Counter Hook
+function useAnimatedNumber(target: number, duration = 1000) {
+  const [value, setValue] = React.useState(0);
+  useEffect(() => {
+    let start = 0;
+    const step = (timestamp: number) => {
+      if (!start) start = timestamp;
+      const progress = Math.min((timestamp - start) / duration, 1);
+      setValue(Math.floor(progress * target));
+      if (progress < 1) {
+        requestAnimationFrame(step);
+      } else {
+        setValue(target);
+      }
+    };
+    requestAnimationFrame(step);
+    // eslint-disable-next-line
+  }, [target]);
+  return value;
+}
+
+export default function AdminDashboard() {
+  const [activeSection, setActiveSection] = useState("dashboard");
+  const [modal, setModal] = useState<{ type: "session" | "order"; data: any } | null>(null);
+
+  const animatedSessions = useAnimatedNumber(kpiData.totalSessions);
+  const animatedRevenue = useAnimatedNumber(kpiData.totalRevenue);
+  const animatedCustomers = useAnimatedNumber(kpiData.totalCustomers);
+  const animatedAvgOrder = useAnimatedNumber(Math.round(kpiData.avgOrderValue));
+
+  const { theme, setTheme } = useTheme ? useTheme() : { theme: "light", setTheme: () => {} };
+  const [dateRange, setDateRange] = useState({ from: "2024-07-01", to: "2024-07-31" });
+  const [statusFilter, setStatusFilter] = useState("");
+  const [photographerFilter, setPhotographerFilter] = useState("");
+
+  const isMobile = typeof window !== 'undefined' ? window.innerWidth < 768 : false;
+
+  // Custom Legend for Sessions Distribution
+  const renderSessionsLegend = (props) => {
+    const { payload } = props;
+    return (
+      <div className={`flex ${isMobile ? 'flex-wrap justify-center' : 'flex-col items-start'} gap-2 mt-4`} style={{ maxWidth: isMobile ? '100%' : 120 }}>
+        {payload.map((entry, idx) => (
+          <div key={entry.value} className="flex items-center gap-2 text-xs font-semibold" style={{ minWidth: 80 }}>
+            <span style={{ background: entry.color, width: 12, height: 12, borderRadius: 6, display: 'inline-block' }}></span>
+            <span style={{ color: entry.color }}>{entry.value}</span>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  // Simulate filtering for sessions/orders
+  const filteredSessions = mockSessions.filter(s =>
+    (!statusFilter || s.status === statusFilter) &&
+    (!photographerFilter || s.customerDetails.photographer === photographerFilter)
+  );
+  const filteredOrders = mockOrders.filter(o =>
+    !statusFilter || (statusFilter === "Paid" && o.status === "Paid") || (statusFilter === "Pending" && o.status === "Pending") || (statusFilter === "Refunded" && o.status === "Refunded")
+  );
+  const photographers = Array.from(new Set(mockSessions.map(s => s.customerDetails.photographer).filter(Boolean)));
+
+  function handleExport(type: "pdf" | "excel") {
+    toast.success(`Exported as ${type.toUpperCase()}! (mock)`);
+  }
+
+  return (
+    <div className="h-screen bg-gradient-to-br from-purple-50 to-indigo-100 dark:from-slate-900 dark:to-slate-800 flex flex-col overflow-hidden">
+      {/* Top Header */}
+      <div className="bg-white dark:bg-slate-800 border-b border-border p-4 flex justify-between items-center shadow-sm flex-shrink-0">
+        <div className="flex items-center gap-3">
+          <img src="/m2-logo.jpg" alt="M2 Photography Logo" className="w-8 h-8 object-contain rounded mr-2" />
+          <span className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent tracking-tight">M2 Admin Portal</span>
+        </div>
+        <div className="flex items-center gap-8">
+          <div className="text-left bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-slate-700 dark:to-slate-600 px-4 py-2 rounded-lg shadow-sm border border-purple-200 dark:border-slate-600">
+            <p className="font-bold text-slate-800 dark:text-slate-200 text-base">John Doe</p>
+            <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">{new Date().toLocaleDateString()}</p>
+          </div>
+          <button
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            className="px-3 py-2 rounded-lg bg-gradient-to-r from-indigo-200 to-purple-200 dark:from-indigo-700 dark:to-purple-700 text-indigo-800 dark:text-white font-semibold shadow hover:scale-105 transition-all"
+            title="Toggle Dark Mode"
+          >
+            {theme === "dark" ? "🌙" : "☀️"}
+          </button>
+          <Button 
+            onClick={() => { localStorage.removeItem("currentUser"); window.location.href = "/"; }}
+            className="px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-2"
+          >
+            <LogOut className="w-5 h-5" /> Logout
+          </Button>
+        </div>
+      </div>
+      <div className="flex flex-1 overflow-hidden min-h-0">
+        {/* Sidebar */}
+        <aside className="w-72 lg:w-80 bg-white dark:bg-slate-800 border-r border-border p-4 lg:p-6 flex flex-col flex-shrink-0 min-w-0 group">
+          <div className="mb-8 flex items-center gap-2">
+            <span className="w-3 h-3 rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 block" />
+            <span className="font-bold text-lg text-purple-700 tracking-wide">Admin Menu</span>
+          </div>
+          <nav className="flex-1">
+            <ul className="space-y-1">
+              {SIDEBAR_LINKS.map(link => (
+                <li key={link.key}>
+                  <button
+                    className={`w-full flex items-center px-4 py-2 rounded-lg transition font-medium text-base gap-2 ${activeSection === link.key ? "bg-gradient-to-r from-purple-100 to-indigo-100 text-purple-800 shadow" : "hover:bg-muted/50 text-gray-700 dark:text-gray-200"}`}
+                    onClick={() => setActiveSection(link.key)}
+                  >
+                    {link.icon}
+                    {link.label}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </nav>
+          <div className="mt-auto pt-8 border-t flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-400 to-indigo-400 flex items-center justify-center text-white font-bold text-lg">J</div>
+            <div>
+              <div className="font-semibold text-sm">John Doe</div>
+              <div className="text-xs text-gray-500">Administrator</div>
+            </div>
+          </div>
+        </aside>
+        {/* Main Content */}
+        <main className="flex-1 p-8 overflow-y-auto bg-transparent">
+          <div className="flex justify-between items-center mb-8">
+            <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">{SIDEBAR_LINKS.find(l => l.key === activeSection)?.label}</h1>
+          </div>
+          {/* Section Content */}
+          {activeSection === "dashboard" && (
+            <>
+              {/* KPI Cards Section */}
+              <div className="w-full bg-gradient-to-r from-white via-purple-50 to-indigo-50 dark:from-slate-900 dark:via-purple-950 dark:to-indigo-950 rounded-2xl shadow-none p-2 md:p-4 mb-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
+                  <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 md:p-6 flex flex-col items-start border border-purple-100 dark:border-slate-700 transition-transform hover:scale-105 min-w-0">
+                    <span className="text-xs font-semibold text-purple-700 mb-1 md:mb-2">Total Sessions</span>
+                    <span className="text-2xl md:text-3xl font-extrabold text-purple-900 dark:text-white">{animatedSessions.toLocaleString()}</span>
+                    <span className="text-xs text-gray-500 mt-1">+5% this month</span>
+                  </div>
+                  <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 md:p-6 flex flex-col items-start border border-indigo-100 dark:border-slate-700 transition-transform hover:scale-105 min-w-0">
+                    <span className="text-xs font-semibold text-indigo-700 mb-1 md:mb-2">Total Revenue</span>
+                    <span className="text-2xl md:text-3xl font-extrabold text-indigo-900 dark:text-white">${animatedRevenue.toLocaleString()}</span>
+                    <span className="text-xs text-gray-500 mt-1">+8% this month</span>
+                  </div>
+                  <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 md:p-6 flex flex-col items-start border border-pink-100 dark:border-slate-700 transition-transform hover:scale-105 min-w-0">
+                    <span className="text-xs font-semibold text-pink-700 mb-1 md:mb-2">Total Customers</span>
+                    <span className="text-2xl md:text-3xl font-extrabold text-pink-900 dark:text-white">{animatedCustomers.toLocaleString()}</span>
+                    <span className="text-xs text-gray-500 mt-1">+3% this month</span>
+                  </div>
+                  <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 md:p-6 flex flex-col items-start border border-indigo-100 dark:border-slate-700 transition-transform hover:scale-105 min-w-0">
+                    <span className="text-xs font-semibold text-indigo-700 mb-1 md:mb-2">Avg. Order Value</span>
+                    <span className="text-2xl md:text-3xl font-extrabold text-indigo-900 dark:text-white">${animatedAvgOrder.toLocaleString()}</span>
+                    <span className="text-xs text-gray-500 mt-1">-2% this month</span>
+                  </div>
+                </div>
+              </div>
+              {/* Divider between KPI and charts */}
+              <div className="w-full flex justify-center mb-10">
+                <div className="h-1 w-2/3 bg-gradient-to-r from-purple-100 via-indigo-100 to-pink-100 dark:from-purple-900 dark:via-indigo-900 dark:to-pink-900 rounded-full opacity-60"></div>
+              </div>
+              {/* Charts Section */}
+              <div className="w-full bg-gradient-to-r from-white via-indigo-50 to-purple-50 dark:from-slate-900 dark:via-indigo-950 dark:to-purple-950 rounded-2xl shadow-none p-2 md:p-4 mb-12">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+                  {/* Revenue Trend Bar Chart */}
+                  <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 md:p-6 border border-purple-100 dark:border-slate-700 flex flex-col min-w-0">
+                    <h3 className="font-semibold text-base md:text-lg mb-3 md:mb-4 text-purple-800 dark:text-purple-200">Revenue Trend</h3>
+                    <ResponsiveContainer width="100%" height={200}>
+                      <BarChart data={revenueTrendData}>
+                        <XAxis dataKey="week" stroke="#a78bfa" fontSize={12} tickLine={false} axisLine={false} />
+                        <YAxis stroke="#a78bfa" fontSize={12} tickLine={false} axisLine={false} />
+                        <Tooltip contentStyle={{ background: '#ede9fe', borderRadius: 8, border: 'none' }} />
+                        <Bar dataKey="revenue" fill="#8b5cf6" radius={[8, 8, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  {/* Sessions Distribution Pie Chart */}
+                  <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 md:p-6 border border-purple-100 dark:border-slate-700 flex flex-col min-w-0">
+                    <h3 className="font-semibold text-base md:text-lg mb-3 md:mb-4 text-purple-800 dark:text-purple-200">Sessions Distribution</h3>
+                    <div className={`flex ${isMobile ? 'flex-col' : 'flex-row'} items-center justify-center`}>
+                      <ResponsiveContainer width={isMobile ? '100%' : 160} height={200}>
+                        <PieChart>
+                          <Pie data={sessionsPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={60} innerRadius={32} label fontSize={12}>
+                            {sessionsPieData.map((entry, idx) => (
+                              <Cell key={`cell-${idx}`} fill={pieColors[idx % pieColors.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip contentStyle={{ background: '#ede9fe', borderRadius: 8, border: 'none' }} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div className="ml-0 md:ml-6 mt-4 md:mt-0">
+                        <Legend content={renderSessionsLegend} />
+                      </div>
+                    </div>
+                  </div>
+                  {/* Order Status Breakdown Pie Chart */}
+                  <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 md:p-6 border border-purple-100 dark:border-slate-700 flex flex-col min-w-0">
+                    <h3 className="font-semibold text-base md:text-lg mb-3 md:mb-4 text-purple-800 dark:text-purple-200">Order Status Breakdown</h3>
+                    <ResponsiveContainer width="100%" height={200}>
+                      <PieChart>
+                        <Pie data={orderStatusPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={60} innerRadius={32} label fontSize={12}>
+                          {orderStatusPieData.map((entry, idx) => (
+                            <Cell key={`cell-status-${idx}`} fill={pieColors[idx % pieColors.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip contentStyle={{ background: '#ede9fe', borderRadius: 8, border: 'none' }} />
+                        <Legend verticalAlign="bottom" height={32} iconType="circle" />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </div>
+              {/* Filters and Export Buttons */}
+              <div className="flex flex-wrap gap-4 items-center mb-8">
+                {/* Date Range Picker (mock) */}
+                <div className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-purple-100 dark:border-slate-700 rounded-lg px-4 py-2 shadow">
+                  <Calendar className="w-4 h-4 text-purple-500 mr-2" />
+                  <input
+                    type="date"
+                    value={dateRange.from}
+                    onChange={e => setDateRange({ ...dateRange, from: e.target.value })}
+                    className="bg-transparent outline-none text-sm w-28"
+                  />
+                  <span className="mx-2 text-gray-400">to</span>
+                  <input
+                    type="date"
+                    value={dateRange.to}
+                    onChange={e => setDateRange({ ...dateRange, to: e.target.value })}
+                    className="bg-transparent outline-none text-sm w-28"
+                  />
+                </div>
+                {/* Status Filter */}
+                <select
+                  value={statusFilter}
+                  onChange={e => setStatusFilter(e.target.value)}
+                  className="bg-white dark:bg-slate-800 border border-purple-100 dark:border-slate-700 rounded-lg px-4 py-2 text-sm shadow"
+                >
+                  <option value="">All Status</option>
+                  <option value="pending">Pending</option>
+                  <option value="ready">Ready</option>
+                  <option value="completed">Completed</option>
+                  <option value="Paid">Paid</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Refunded">Refunded</option>
+                </select>
+                {/* Photographer Filter */}
+                <select
+                  value={photographerFilter}
+                  onChange={e => setPhotographerFilter(e.target.value)}
+                  className="bg-white dark:bg-slate-800 border border-purple-100 dark:border-slate-700 rounded-lg px-4 py-2 text-sm shadow"
+                >
+                  <option value="">All Photographers</option>
+                  {photographers.map(name => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
+                {/* Export Buttons */}
+                <button
+                  onClick={() => handleExport("pdf")}
+                  className="ml-auto px-4 py-2 rounded-lg bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-semibold shadow hover:scale-105 transition-all"
+                >
+                  Export PDF
+                </button>
+                <button
+                  onClick={() => handleExport("excel")}
+                  className="px-4 py-2 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-semibold shadow hover:scale-105 transition-all"
+                >
+                  Export Excel
+                </button>
+              </div>
+              {/* Sessions Table */}
+              <div className="w-full flex flex-col gap-8 mt-2">
+                {/* Recent Sessions Table */}
+                <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8 md:p-10 border border-purple-100 dark:border-slate-700 mb-4">
+                  <h2 className="font-semibold text-xl mb-6 text-purple-800 dark:text-purple-200">Recent Sessions</h2>
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-gray-500">
+                        <th className="py-3">Session</th>
+                        <th className="py-3">Customer</th>
+                        <th className="py-3">Date</th>
+                        <th className="py-3">Status</th>
+                        <th className="py-3">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredSessions.map(session => (
+                        <tr key={session.id} className="border-b last:border-0 hover:bg-purple-50/30 dark:hover:bg-purple-900/10 transition">
+                          <td className="py-4 font-medium">{session.name}</td>
+                          <td className="py-4">{session.customerDetails.name}</td>
+                          <td className="py-4">{session.date}</td>
+                          <td className="py-4">
+                            <span className={`px-2 py-1 rounded text-xs font-semibold ${session.status === "completed" ? "bg-green-100 text-green-700" : session.status === "ready" ? "bg-indigo-100 text-indigo-700" : "bg-yellow-100 text-yellow-700"}`}>{session.status.charAt(0).toUpperCase() + session.status.slice(1)}</span>
+                          </td>
+                          <td className="py-4">
+                            <Button size="sm" variant="outline" onClick={() => setModal({ type: "session", data: session })}>View</Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {/* Recent Orders Table */}
+                <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8 md:p-10 border border-purple-100 dark:border-slate-700">
+                  <h2 className="font-semibold text-xl mb-6 text-purple-800 dark:text-purple-200">Recent Orders</h2>
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-gray-500">
+                        <th className="py-3">Order ID</th>
+                        <th className="py-3">Customer</th>
+                        <th className="py-3">Date</th>
+                        <th className="py-3">Amount</th>
+                        <th className="py-3">Status</th>
+                        <th className="py-3">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredOrders.map(order => (
+                        <tr key={order.id} className="border-b last:border-0 hover:bg-purple-50/30 dark:hover:bg-purple-900/10 transition">
+                          <td className="py-4 font-medium">{order.id}</td>
+                          <td className="py-4">{order.customer}</td>
+                          <td className="py-4">{order.date}</td>
+                          <td className="py-4">${order.amount.toFixed(2)}</td>
+                          <td className="py-4">
+                            <span className={`px-2 py-1 rounded text-xs font-semibold ${order.status === "Paid" ? "bg-green-100 text-green-700" : order.status === "Pending" ? "bg-yellow-100 text-yellow-700" : "bg-purple-100 text-purple-700"}`}>{order.status}</span>
+                          </td>
+                          <td className="py-4">
+                            <Button size="sm" variant="outline" onClick={() => setModal({ type: "order", data: order })}>View</Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
+          {/* Sessions Section */}
+          {activeSection === "sessions" && (
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8 border border-purple-100 dark:border-slate-700">
+              <h2 className="font-semibold text-xl mb-4 text-purple-800 dark:text-purple-200">All Sessions</h2>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-gray-500">
+                    <th className="py-2">Session</th>
+                    <th className="py-2">Customer</th>
+                    <th className="py-2">Date</th>
+                    <th className="py-2">Status</th>
+                    <th className="py-2">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {mockSessions.map(session => (
+                    <tr key={session.id} className="border-b last:border-0">
+                      <td className="py-2 font-medium">{session.name}</td>
+                      <td className="py-2">{session.customerDetails.name}</td>
+                      <td className="py-2">{session.date}</td>
+                      <td className="py-2">
+                        <span className={`px-2 py-1 rounded text-xs font-semibold ${session.status === "completed" ? "bg-green-100 text-green-700" : session.status === "ready" ? "bg-indigo-100 text-indigo-700" : "bg-yellow-100 text-yellow-700"}`}>{session.status.charAt(0).toUpperCase() + session.status.slice(1)}</span>
+                      </td>
+                      <td className="py-2">
+                        <Button size="sm" variant="outline" onClick={() => setModal({ type: "session", data: session })}>View</Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {/* Orders Section */}
+          {activeSection === "orders" && (
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8 border border-purple-100 dark:border-slate-700">
+              <h2 className="font-semibold text-xl mb-4 text-purple-800 dark:text-purple-200">All Orders</h2>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-gray-500">
+                    <th className="py-2">Order ID</th>
+                    <th className="py-2">Customer</th>
+                    <th className="py-2">Date</th>
+                    <th className="py-2">Amount</th>
+                    <th className="py-2">Status</th>
+                    <th className="py-2">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {mockOrders.map(order => (
+                    <tr key={order.id} className="border-b last:border-0">
+                      <td className="py-2 font-medium">{order.id}</td>
+                      <td className="py-2">{order.customer}</td>
+                      <td className="py-2">{order.date}</td>
+                      <td className="py-2">${order.amount.toFixed(2)}</td>
+                      <td className="py-2">
+                        <span className={`px-2 py-1 rounded text-xs font-semibold ${order.status === "Paid" ? "bg-green-100 text-green-700" : order.status === "Pending" ? "bg-yellow-100 text-yellow-700" : "bg-purple-100 text-purple-700"}`}>{order.status}</span>
+                      </td>
+                      <td className="py-2">
+                        <Button size="sm" variant="outline" onClick={() => setModal({ type: "order", data: order })}>View</Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {/* Placeholder for other sections */}
+          {!(activeSection === "dashboard" || activeSection === "sessions" || activeSection === "orders") && (
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8 border border-purple-100 dark:border-slate-700 text-gray-500 text-center">Section coming soon...</div>
+          )}
+          {/* Modal for viewing details/photos */}
+          {modal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl p-8 w-full max-w-lg relative border border-purple-200 dark:border-slate-700">
+                <button className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 text-3xl font-bold" onClick={() => setModal(null)}>&times;</button>
+                {modal.type === "session" ? (
+                  <div>
+                    <h2 className="font-bold text-xl mb-2 text-purple-800 dark:text-purple-200">Session Details</h2>
+                    <div className="mb-2"><span className="font-semibold">Session:</span> {modal.data.name}</div>
+                    <div className="mb-2"><span className="font-semibold">Customer:</span> {modal.data.customerDetails.name}</div>
+                    <div className="mb-2"><span className="font-semibold">Date:</span> {modal.data.date}</div>
+                    <div className="mb-2"><span className="font-semibold">Location:</span> {modal.data.customerDetails.location}</div>
+                    <div className="mb-2"><span className="font-semibold">Photographer:</span> {modal.data.customerDetails.photographer || "-"}</div>
+                    <div className="mb-2"><span className="font-semibold">Status:</span> {modal.data.status}</div>
+                    <div className="mb-2"><span className="font-semibold">Images:</span></div>
+                    <div className="flex gap-2 flex-wrap">
+                      {modal.data.images.map((img: string, idx: number) => (
+                        <img key={idx} src={img} alt="Session" className="w-20 h-20 object-cover rounded border" />
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <h2 className="font-bold text-xl mb-2 text-purple-800 dark:text-purple-200">Order Details</h2>
+                    <div className="mb-2"><span className="font-semibold">Order ID:</span> {modal.data.id}</div>
+                    <div className="mb-2"><span className="font-semibold">Customer:</span> {modal.data.customer}</div>
+                    <div className="mb-2"><span className="font-semibold">Date:</span> {modal.data.date}</div>
+                    <div className="mb-2"><span className="font-semibold">Amount:</span> ${modal.data.amount.toFixed(2)}</div>
+                    <div className="mb-2"><span className="font-semibold">Status:</span> {modal.data.status}</div>
+                    <div className="mt-4 text-gray-500 text-sm">(Order photo preview coming soon...)</div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </main>
+      </div>
+    </div>
+  );
+} 
