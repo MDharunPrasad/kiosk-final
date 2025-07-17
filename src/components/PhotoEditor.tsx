@@ -197,9 +197,13 @@ export function PhotoEditor({
     } else if (fabricCanvasRef.current && currentImages[selectedImageIndex]) {
       loadImageToCanvas(currentImages[selectedImageIndex]);
     }
+  }, [selectedImageIndex]);
+
+  // Clear undo/redo stacks only when switching images
+  useEffect(() => {
     setUndoStack([]);
     setRedoStack([]);
-  }, [selectedImageIndex, canvasStates, currentImages]);
+  }, [selectedImageIndex]);
 
   // Push current state to undo stack only if main image is present, using deep copy
   const pushUndo = useCallback(() => {
@@ -314,11 +318,13 @@ export function PhotoEditor({
     });
   };
 
-  const loadImageToCanvas = async (imageUrl: string) => {
+  const loadImageToCanvas = async (imageUrl: string, skipLoadingState = false) => {
     const canvas = fabricCanvasRef.current;
     if (!canvas || !fabric) return;
 
-    setIsImageLoaded(false);
+    if (!skipLoadingState) {
+      setIsImageLoaded(false);
+    }
     
     try {
       const base64Image = await convertImageToBase64(imageUrl);
@@ -354,22 +360,26 @@ export function PhotoEditor({
         canvas.sendToBack(img);
         canvas.renderAll();
         
-        setIsImageLoaded(true);
-        
-        setBrightness(0);
-        setContrast(0);
-        setSaturation(0);
-        setSelectedFrame('none');
-        setSelectedBorder('none');
-        setSelectedFilter('none');
-        setIsCropping(false);
-        // Push initial state to undo stack if this is the first load for this image
-        setUndoStack(prev => prev.length === 0 ? [canvas.toJSON()] : prev);
+        if (!skipLoadingState) {
+          setIsImageLoaded(true);
+          
+          setBrightness(0);
+          setContrast(0);
+          setSaturation(0);
+          setSelectedFrame('none');
+          setSelectedBorder('none');
+          setSelectedFilter('none');
+          setIsCropping(false);
+          // Push initial state to undo stack if this is the first load for this image
+          setUndoStack(prev => prev.length === 0 ? [canvas.toJSON()] : prev);
+        }
       }, { crossOrigin: 'anonymous' });
       
     } catch (error) {
       console.error('Error loading image:', error);
-      setIsImageLoaded(false);
+      if (!skipLoadingState) {
+        setIsImageLoaded(false);
+      }
     }
   };
 
@@ -1243,6 +1253,7 @@ export function PhotoEditor({
   const syncToolStateWithCanvas = () => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
+    
     // Border
     const borderObj = canvas.getObjects().find((obj: any) => obj.id === 'border');
     if (borderObj) {
@@ -1262,9 +1273,11 @@ export function PhotoEditor({
       setBorderWidth(10);
       setBorderColor('#000000');
     }
+    
     // Frame
     const frameObj = canvas.getObjects().find((obj: any) => obj.id === 'frame');
     setSelectedFrame(frameObj ? 'classic' : 'none');
+    
     // Filter (try to detect grayscale, sepia, etc.)
     const mainImage = canvas.getObjects().find((obj: any) => obj.id === 'mainImage');
     if (mainImage && mainImage.filters && mainImage.filters.length > 0) {
@@ -1274,11 +1287,21 @@ export function PhotoEditor({
     } else {
       setSelectedFilter('none');
     }
+    
     // Cropping
     const hasCrop = canvas.getObjects().some((obj: any) => obj.id === 'cropRect');
     setIsCropping(hasCrop);
+    
     // Enable edits if main image is present
-    setIsImageLoaded(!!mainImage);
+    const hasMainImage = !!mainImage;
+    setIsImageLoaded(hasMainImage);
+    
+    // Force a re-render to ensure UI state is updated
+    setTimeout(() => {
+      setSelectedBorder(prev => prev);
+      setSelectedFrame(prev => prev);
+      setSelectedFilter(prev => prev);
+    }, 0);
   };
 
   // Helper to extract border info from a Fabric.js JSON state
@@ -1308,30 +1331,30 @@ export function PhotoEditor({
     const currentState = JSON.parse(JSON.stringify(fabricCanvasRef.current.toJSON()));
     setRedoStack(r => [...r, currentState]);
     console.log('Undo: loading prevState', prevState);
-    fabricCanvasRef.current.loadFromJSON(prevState, () => {
-      fabricCanvasRef.current.renderAll();
-      syncToolStateWithCanvas();
-      // Bulletproof: If main image is missing, reload and re-apply border
-      const mainImage = fabricCanvasRef.current.getObjects().find((obj: any) => obj.id === 'mainImage');
-      if (mainImage) {
+    
+    // Check if main image exists in the state before loading
+    const hasMainImageInState = prevState.objects && prevState.objects.some((obj: any) => obj.id === 'mainImage');
+    
+    if (hasMainImageInState) {
+      // State has main image, load directly
+      fabricCanvasRef.current.loadFromJSON(prevState, () => {
+        fabricCanvasRef.current.renderAll();
+        syncToolStateWithCanvas();
         setIsImageLoaded(true);
-      } else {
-        // Extract border info from prevState
-        const borderInfo = extractBorderFromJSON(prevState);
-        if (currentImages[selectedImageIndex]) {
-          loadImageToCanvas(currentImages[selectedImageIndex]).then(() => {
-            // Re-apply border if needed
-            if (borderInfo && borderInfo.type !== 'none') {
-              setBorderColor(borderInfo.color);
-              setBorderWidth(borderInfo.width);
-              applyBorder(borderInfo.type);
-            }
-          });
-        } else {
-          setIsImageLoaded(false);
-        }
+      });
+    } else {
+      // State doesn't have main image, reload image first then apply state
+      if (currentImages[selectedImageIndex]) {
+        loadImageToCanvas(currentImages[selectedImageIndex], true).then(() => {
+          setTimeout(() => {
+            fabricCanvasRef.current.loadFromJSON(prevState, () => {
+              fabricCanvasRef.current.renderAll();
+              syncToolStateWithCanvas();
+            });
+          }, 50);
+        });
       }
-    });
+    }
   };
 
   // Redo handler
@@ -1342,32 +1365,30 @@ export function PhotoEditor({
     const currentState = JSON.parse(JSON.stringify(fabricCanvasRef.current.toJSON()));
     setUndoStack(u => [...u, currentState]);
     console.log('Redo: loading nextState', nextState);
-    fabricCanvasRef.current.loadFromJSON(nextState, () => {
-      fabricCanvasRef.current.renderAll();
-      syncToolStateWithCanvas();
-      // Bulletproof: If main image is missing, reload and re-apply border
-      const mainImage = fabricCanvasRef.current.getObjects().find((obj: any) => obj.id === 'mainImage');
-      const borderObj = fabricCanvasRef.current.getObjects().find((obj: any) => obj.id === 'border');
-      console.log('After redo: mainImage present?', !!mainImage, 'border present?', !!borderObj);
-      if (mainImage) {
+    
+    // Check if main image exists in the state before loading
+    const hasMainImageInState = nextState.objects && nextState.objects.some((obj: any) => obj.id === 'mainImage');
+    
+    if (hasMainImageInState) {
+      // State has main image, load directly
+      fabricCanvasRef.current.loadFromJSON(nextState, () => {
+        fabricCanvasRef.current.renderAll();
+        syncToolStateWithCanvas();
         setIsImageLoaded(true);
-      } else {
-        // Extract border info from nextState
-        const borderInfo = extractBorderFromJSON(nextState);
-        if (currentImages[selectedImageIndex]) {
-          loadImageToCanvas(currentImages[selectedImageIndex]).then(() => {
-            // Re-apply border if needed
-            if (borderInfo && borderInfo.type !== 'none') {
-              setBorderColor(borderInfo.color);
-              setBorderWidth(borderInfo.width);
-              applyBorder(borderInfo.type);
-            }
-          });
-        } else {
-          setIsImageLoaded(false);
-        }
+      });
+    } else {
+      // State doesn't have main image, reload image first then apply state
+      if (currentImages[selectedImageIndex]) {
+        loadImageToCanvas(currentImages[selectedImageIndex], true).then(() => {
+          setTimeout(() => {
+            fabricCanvasRef.current.loadFromJSON(nextState, () => {
+              fabricCanvasRef.current.renderAll();
+              syncToolStateWithCanvas();
+            });
+          }, 50);
+        });
       }
-    });
+    }
   };
 
   if (!fabricLoaded) {
