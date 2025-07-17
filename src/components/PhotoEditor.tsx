@@ -100,6 +100,8 @@ export function PhotoEditor({
   const [editedImages, setEditedImages] = useState<Set<number>>(
     new Set(session.editedImages || [])
   );
+  // Add frameSize state
+  const [frameSize, setFrameSize] = useState(20);
 
   // Adjustment state
   const [brightness, setBrightness] = useState(0);
@@ -199,11 +201,13 @@ export function PhotoEditor({
     setRedoStack([]);
   }, [selectedImageIndex, canvasStates, currentImages]);
 
-  // Push current state to undo stack only if different from last
+  // Push current state to undo stack only if main image is present, using deep copy
   const pushUndo = useCallback(() => {
     if (fabricCanvasRef.current) {
-      const current = fabricCanvasRef.current.toJSON();
-      if (undoStack.length === 0 || JSON.stringify(undoStack[undoStack.length - 1]) !== JSON.stringify(current)) {
+      const current = JSON.parse(JSON.stringify(fabricCanvasRef.current.toJSON()));
+      const hasMainImage = (fabricCanvasRef.current.getObjects().find((obj: any) => obj.id === 'mainImage'));
+      if (hasMainImage && (undoStack.length === 0 || JSON.stringify(undoStack[undoStack.length - 1]) !== JSON.stringify(current))) {
+        console.log('Pushing to undoStack:', current);
         setUndoStack(prev => [...prev, current]);
         setRedoStack([]); // Clear redo stack on new action
       }
@@ -359,6 +363,8 @@ export function PhotoEditor({
         setSelectedBorder('none');
         setSelectedFilter('none');
         setIsCropping(false);
+        // Push initial state to undo stack if this is the first load for this image
+        setUndoStack(prev => prev.length === 0 ? [canvas.toJSON()] : prev);
       }, { crossOrigin: 'anonymous' });
       
     } catch (error) {
@@ -408,12 +414,14 @@ export function PhotoEditor({
           
           fabric.Image.fromURL(croppedDataURL, (newImg: any) => {
             canvas.clear();
-            
+
+            // Remove any existing frame or border objects
+            // (in case they were present before cropping)
+            canvas.getObjects().filter((obj: any) => obj.id === 'frame' || obj.id === 'border' || obj.id === 'innerBorder').forEach((obj: any) => canvas.remove(obj));
+
             const canvasWidth = canvas.getWidth();
             const canvasHeight = canvas.getHeight();
-            const newScale = Math.min(canvasWidth / newImg.width!, canvasHeight / newImg.height!) * 0.8;
-            
-            newImg.scale(newScale);
+            // Center the cropped image on the canvas, keep its cropped size and aspect ratio
             newImg.set({
               left: canvasWidth / 2,
               top: canvasHeight / 2,
@@ -423,13 +431,14 @@ export function PhotoEditor({
               evented: false,
               id: 'mainImage'
             });
-            
+
             canvas.add(newImg);
             canvas.renderAll();
-            
+
             originalImageRef.current = newImg;
             setIsCropping(false);
-            
+            setSelectedBorder('none'); // Reset border after crop
+
             // After applying crop, save the image
             setTimeout(() => {
               const finalDataURL = canvas.toDataURL({
@@ -882,7 +891,7 @@ export function PhotoEditor({
 
     // Get the exact bounds of the main image
     const imageBounds = mainImage.getBoundingRect(true);
-    const frameWidth = 20;
+    const frameWidth = frameSize; // Use state
     
     let frameRect;
     
@@ -896,8 +905,8 @@ export function PhotoEditor({
           fill: '#8B4513',
           stroke: '#654321',
           strokeWidth: 2,
-          selectable: false,
-          evented: false,
+          selectable: true, // Make frame movable/resizable
+          evented: true,    // Make frame movable/resizable
           id: 'frame'
         });
         break;
@@ -910,8 +919,8 @@ export function PhotoEditor({
           fill: '#2c3e50',
           stroke: '#34495e',
           strokeWidth: 1,
-          selectable: false,
-          evented: false,
+          selectable: true, // Make frame movable/resizable
+          evented: true,    // Make frame movable/resizable
           id: 'frame'
         });
         break;
@@ -924,8 +933,8 @@ export function PhotoEditor({
           fill: '#d4af37',
           stroke: '#b8860b',
           strokeWidth: 3,
-          selectable: false,
-          evented: false,
+          selectable: true, // Make frame movable/resizable
+          evented: true,    // Make frame movable/resizable
           id: 'frame'
         });
         break;
@@ -938,8 +947,8 @@ export function PhotoEditor({
           fill: '#ffffff',
           stroke: '#cccccc',
           strokeWidth: 1,
-          selectable: false,
-          evented: false,
+          selectable: true, // Make frame movable/resizable
+          evented: true,    // Make frame movable/resizable
           id: 'frame'
         });
         break;
@@ -952,8 +961,8 @@ export function PhotoEditor({
           fill: '#ffd700',
           stroke: '#ff8c00',
           strokeWidth: 4,
-          selectable: false,
-          evented: false,
+          selectable: true, // Make frame movable/resizable
+          evented: true,    // Make frame movable/resizable
           id: 'frame'
         });
         break;
@@ -961,8 +970,8 @@ export function PhotoEditor({
 
     if (frameRect) {
       canvas.add(frameRect);
-      canvas.sendToBack(frameRect);
-      canvas.bringToFront(mainImage);
+      canvas.sendToBack(frameRect); // Frame always behind
+      canvas.bringToFront(mainImage); // Image always above frame
       canvas.renderAll();
       setSelectedFrame(frameType);
       setEditedImages(prev => new Set(prev).add(selectedImageIndex));
@@ -971,6 +980,7 @@ export function PhotoEditor({
 
   // Border functions (improved centering)
   const applyBorder = (borderType: string) => {
+    // Ensure pushUndo is called BEFORE any canvas mutation
     pushUndo();
     const canvas = fabricCanvasRef.current;
     if (!canvas || !fabric || !isImageLoaded) return;
@@ -978,13 +988,21 @@ export function PhotoEditor({
     // Remove existing border(s)
     canvas.getObjects().filter((obj: any) => obj.id === 'border' || obj.id === 'innerBorder').forEach((obj: any) => canvas.remove(obj));
 
+    if (borderType === 'none') {
+      setSelectedBorder('none');
+      canvas.renderAll();
+      setEditedImages(prev => new Set(prev).add(selectedImageIndex));
+      return;
+    }
+
     const mainImage = canvas.getObjects().find((obj: any) => obj.id === 'mainImage');
     if (!mainImage) return;
 
     // Get the exact bounds of the main image
     const imageBounds = mainImage.getBoundingRect(true);
-    const centerX = mainImage.left;
-    const centerY = mainImage.top;
+    // Use the center of the image bounds for the border
+    const centerX = imageBounds.left + imageBounds.width / 2;
+    const centerY = imageBounds.top + imageBounds.height / 2;
 
     let borderRect;
     let strokeDashArray: number[] | undefined;
@@ -1020,8 +1038,8 @@ export function PhotoEditor({
       strokeDashArray: strokeDashArray,
       rx: borderType === 'rounded' ? 10 : 0,
       ry: borderType === 'rounded' ? 10 : 0,
-      selectable: false,
-      evented: false,
+      selectable: true, // Make border movable/resizable
+      evented: true,    // Make border movable/resizable
       id: 'border'
     });
 
@@ -1045,6 +1063,8 @@ export function PhotoEditor({
     }
 
     canvas.add(borderRect);
+    // Always bring main image to front after adding border
+    canvas.bringToFront(mainImage);
     canvas.renderAll();
     setSelectedBorder(borderType);
     setEditedImages(prev => new Set(prev).add(selectedImageIndex));
@@ -1138,6 +1158,9 @@ export function PhotoEditor({
       newSet.delete(selectedImageIndex);
       return newSet;
     });
+    setTimeout(() => {
+      syncToolStateWithCanvas();
+    }, 100);
   };
 
   const confirmDeleteImage = () => {
@@ -1216,14 +1239,98 @@ export function PhotoEditor({
     }
   }, [watermarkImageOpacity]);
 
+  // Helper to sync React tool state with canvas objects and re-apply to canvas
+  const syncToolStateWithCanvas = () => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+    // Border
+    const borderObj = canvas.getObjects().find((obj: any) => obj.id === 'border');
+    if (borderObj) {
+      // Determine border type from strokeDashArray and rx/ry
+      let borderType = 'solid';
+      if (borderObj.strokeDashArray && borderObj.strokeDashArray.length) {
+        if (borderObj.strokeDashArray[0] === 10 && borderObj.strokeDashArray[1] === 5) borderType = 'dashed';
+        else if (borderObj.strokeDashArray[0] === 2 && borderObj.strokeDashArray[1] === 3) borderType = 'dotted';
+      } else if (borderObj.rx === 10 && borderObj.ry === 10) {
+        borderType = 'rounded';
+      }
+      setSelectedBorder(borderType);
+      setBorderWidth(borderObj.strokeWidth || 10);
+      setBorderColor(borderObj.stroke || '#000000');
+    } else {
+      setSelectedBorder('none');
+      setBorderWidth(10);
+      setBorderColor('#000000');
+    }
+    // Frame
+    const frameObj = canvas.getObjects().find((obj: any) => obj.id === 'frame');
+    setSelectedFrame(frameObj ? 'classic' : 'none');
+    // Filter (try to detect grayscale, sepia, etc.)
+    const mainImage = canvas.getObjects().find((obj: any) => obj.id === 'mainImage');
+    if (mainImage && mainImage.filters && mainImage.filters.length > 0) {
+      const hasGrayscale = mainImage.filters.some((f: any) => f && f.type === 'Grayscale');
+      const hasSepia = mainImage.filters.some((f: any) => f && f.type === 'Sepia');
+      setSelectedFilter(hasGrayscale ? 'blackwhite' : hasSepia ? 'sepia' : 'none');
+    } else {
+      setSelectedFilter('none');
+    }
+    // Cropping
+    const hasCrop = canvas.getObjects().some((obj: any) => obj.id === 'cropRect');
+    setIsCropping(hasCrop);
+    // Enable edits if main image is present
+    setIsImageLoaded(!!mainImage);
+  };
+
+  // Helper to extract border info from a Fabric.js JSON state
+  function extractBorderFromJSON(json) {
+    if (!json || !json.objects) return null;
+    const borderObj = json.objects.find(obj => obj.id === 'border');
+    if (!borderObj) return null;
+    let borderType = 'solid';
+    if (borderObj.strokeDashArray && borderObj.strokeDashArray.length) {
+      if (borderObj.strokeDashArray[0] === 10 && borderObj.strokeDashArray[1] === 5) borderType = 'dashed';
+      else if (borderObj.strokeDashArray[0] === 2 && borderObj.strokeDashArray[1] === 3) borderType = 'dotted';
+    } else if (borderObj.rx === 10 && borderObj.ry === 10) {
+      borderType = 'rounded';
+    }
+    return {
+      type: borderType,
+      color: borderObj.stroke || '#000000',
+      width: borderObj.strokeWidth || 10
+    };
+  }
+
   // Undo handler
   const handleUndo = () => {
     if (undoStack.length === 0 || !fabricCanvasRef.current) return;
     const prevState = undoStack[undoStack.length - 1];
     setUndoStack(undoStack.slice(0, -1));
-    setRedoStack(r => [...r, fabricCanvasRef.current!.toJSON()]);
+    const currentState = JSON.parse(JSON.stringify(fabricCanvasRef.current.toJSON()));
+    setRedoStack(r => [...r, currentState]);
+    console.log('Undo: loading prevState', prevState);
     fabricCanvasRef.current.loadFromJSON(prevState, () => {
       fabricCanvasRef.current.renderAll();
+      syncToolStateWithCanvas();
+      // Bulletproof: If main image is missing, reload and re-apply border
+      const mainImage = fabricCanvasRef.current.getObjects().find((obj: any) => obj.id === 'mainImage');
+      if (mainImage) {
+        setIsImageLoaded(true);
+      } else {
+        // Extract border info from prevState
+        const borderInfo = extractBorderFromJSON(prevState);
+        if (currentImages[selectedImageIndex]) {
+          loadImageToCanvas(currentImages[selectedImageIndex]).then(() => {
+            // Re-apply border if needed
+            if (borderInfo && borderInfo.type !== 'none') {
+              setBorderColor(borderInfo.color);
+              setBorderWidth(borderInfo.width);
+              applyBorder(borderInfo.type);
+            }
+          });
+        } else {
+          setIsImageLoaded(false);
+        }
+      }
     });
   };
 
@@ -1232,9 +1339,34 @@ export function PhotoEditor({
     if (redoStack.length === 0 || !fabricCanvasRef.current) return;
     const nextState = redoStack[redoStack.length - 1];
     setRedoStack(redoStack.slice(0, -1));
-    setUndoStack(u => [...u, fabricCanvasRef.current!.toJSON()]);
+    const currentState = JSON.parse(JSON.stringify(fabricCanvasRef.current.toJSON()));
+    setUndoStack(u => [...u, currentState]);
+    console.log('Redo: loading nextState', nextState);
     fabricCanvasRef.current.loadFromJSON(nextState, () => {
       fabricCanvasRef.current.renderAll();
+      syncToolStateWithCanvas();
+      // Bulletproof: If main image is missing, reload and re-apply border
+      const mainImage = fabricCanvasRef.current.getObjects().find((obj: any) => obj.id === 'mainImage');
+      const borderObj = fabricCanvasRef.current.getObjects().find((obj: any) => obj.id === 'border');
+      console.log('After redo: mainImage present?', !!mainImage, 'border present?', !!borderObj);
+      if (mainImage) {
+        setIsImageLoaded(true);
+      } else {
+        // Extract border info from nextState
+        const borderInfo = extractBorderFromJSON(nextState);
+        if (currentImages[selectedImageIndex]) {
+          loadImageToCanvas(currentImages[selectedImageIndex]).then(() => {
+            // Re-apply border if needed
+            if (borderInfo && borderInfo.type !== 'none') {
+              setBorderColor(borderInfo.color);
+              setBorderWidth(borderInfo.width);
+              applyBorder(borderInfo.type);
+            }
+          });
+        } else {
+          setIsImageLoaded(false);
+        }
+      }
     });
   };
 
@@ -1489,14 +1621,6 @@ export function PhotoEditor({
                             })}
                           </div>
                           
-                          {selectedFilter !== 'none' && (
-                            <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                              <p className="text-xs text-blue-700 dark:text-blue-300">
-                                <Filter className="h-3 w-3 inline mr-1" />
-                                Filter "{filterOptions.find(f => f.value === selectedFilter)?.label}" applied
-                              </p>
-                            </div>
-                          )}
                         </div>
                       )}
 
@@ -1553,8 +1677,14 @@ export function PhotoEditor({
                                   value={borderWidth}
                                   onChange={(e) => {
                                     setBorderWidth(Number(e.target.value));
-                                    if (selectedBorder !== 'none') {
-                                      applyBorder(selectedBorder);
+                                    // Update border object if present and selectable
+                                    const canvas = fabricCanvasRef.current;
+                                    if (canvas) {
+                                      const borderObj = canvas.getObjects().find((obj: any) => obj.id === 'border');
+                                      if (borderObj) {
+                                        borderObj.set({ strokeWidth: Number(e.target.value) });
+                                        canvas.renderAll();
+                                      }
                                     }
                                   }}
                                   className="w-full"
@@ -1569,15 +1699,21 @@ export function PhotoEditor({
                                   value={borderColor}
                                   onChange={(e) => {
                                     setBorderColor(e.target.value);
-                                    if (selectedBorder !== 'none') {
-                                      applyBorder(selectedBorder);
-                                    }
                                   }}
                                   className="w-full h-10"
                                   disabled={!isImageLoaded}
                                 />
                               </div>
                             </div>
+                          )}
+                          {selectedBorder !== 'none' && (
+                            <Button
+                              className="w-full mt-2"
+                              onClick={() => applyBorder(selectedBorder)}
+                              disabled={!isImageLoaded}
+                            >
+                              Apply Border Changes
+                            </Button>
                           )}
                         </div>
                       )}
@@ -1631,10 +1767,8 @@ export function PhotoEditor({
                                   {[
                                     { name: 'Black', value: '#000000' },
                                     { name: 'White', value: '#FFFFFF' },
-                                    { name: 'Brown', value: '#8B4513' },
                                     { name: 'Red', value: '#FF0000' },
                                     { name: 'Blue', value: '#0074D9' },
-                                    { name: 'Green', value: '#2ECC40' },
                                     { name: 'Yellow', value: '#FFDC00' },
                                   ].map((swatch) => (
                                     <button
@@ -1722,7 +1856,26 @@ export function PhotoEditor({
                 </div>
               )}
             </div>
-            
+            {/* Frame Size Slider - only show if a frame is selected */}
+            {selectedFrame !== 'none' && (
+              <div className="w-full max-w-xs mt-4 flex flex-col items-center">
+                <label className="text-sm font-medium mb-1">Frame Size: {frameSize}px</label>
+                <Input
+                  type="range"
+                  min="-50"
+                  max="100"
+                  value={frameSize}
+                  onChange={e => {
+                    setFrameSize(Number(e.target.value));
+                    if (selectedFrame !== 'none') {
+                      applyFrame(selectedFrame);
+                    }
+                  }}
+                  className="w-full"
+                  disabled={!isImageLoaded}
+                />
+              </div>
+            )}
             {/* Save Changes and Reset Buttons below canvas */}
             <div className="mt-4 flex gap-3">
               <Button 
