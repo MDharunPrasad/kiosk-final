@@ -58,6 +58,200 @@ const orderStatusPieData = [
 ];
 const pieColors = ["#8b5cf6", "#6366f1", "#f472b6", "#22d3ee", "#facc15", "#34d399", "#f87171"];
 
+// --- Error Boundary for Robustness ---
+class DashboardErrorBoundary extends React.Component<any, { hasError: boolean; error: any }> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error: any) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error: any, info: any) {
+    // Log error to service if needed
+    // console.error("Dashboard Error:", error, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+          <h2 className="text-2xl font-bold text-red-600 mb-4">Something went wrong in the dashboard.</h2>
+          <pre className="bg-red-50 text-red-800 rounded p-4 max-w-xl overflow-x-auto text-xs">{String(this.state.error)}</pre>
+          <button className="mt-6 px-4 py-2 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded shadow" onClick={() => window.location.reload()}>Reload Dashboard</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+// --- Safe Legend Function ---
+const renderSessionsLegend = (props: any) => {
+  const { payload } = props || {};
+  if (!payload || !Array.isArray(payload)) return null;
+  return (
+    <div className={`flex ${typeof window !== 'undefined' && window.innerWidth < 768 ? 'flex-wrap justify-center' : 'flex-col items-start'} gap-2 mt-4`} style={{ maxWidth: typeof window !== 'undefined' && window.innerWidth < 768 ? '100%' : 120 }}>
+      {payload.map((entry: any, idx: number) => (
+        <div key={entry?.value || idx} className="flex items-center gap-2 text-xs font-semibold" style={{ minWidth: 80 }}>
+          <span style={{ background: entry?.color, width: 12, height: 12, borderRadius: 6, display: 'inline-block' }}></span>
+          <span style={{ color: entry?.color }}>{entry?.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// --- Robust sample session fallback ---
+const sampleSessionsFallback = [
+  {
+    id: "sample-1",
+    name: "Family Portrait",
+    date: "2024-07-20",
+    type: "Family",
+    status: "pending",
+    printCount: 2,
+    images: ["/public/placeholder.svg"],
+    customerDetails: {
+      name: "Johnson Family",
+      location: "Central Park",
+      date: "2024-07-20",
+      photographer: "John Doe"
+    }
+  },
+  {
+    id: "sample-2",
+    name: "Wedding Photography",
+    date: "2024-07-15",
+    type: "Wedding",
+    status: "ready",
+    printCount: 5,
+    images: ["/public/placeholder.svg"],
+    customerDetails: {
+      name: "Sarah & Mike",
+      location: "Riverside Gardens",
+      date: "2024-07-15",
+      photographer: "Jane Smith"
+    }
+  },
+  {
+    id: "sample-3",
+    name: "Graduation Photoshoot",
+    date: "2024-07-10",
+    type: "Graduation",
+    status: "completed",
+    printCount: 3,
+    images: ["/public/placeholder.svg"],
+    customerDetails: {
+      name: "Emily Rodriguez",
+      location: "University Campus",
+      date: "2024-07-10",
+      photographer: "John Doe"
+    }
+  }
+];
+
+// --- Sample data for photographers ---
+const samplePhotographers = [
+  {
+    id: 'P-001',
+    name: 'Alex Thompson',
+    email: 'alex.thompson@email.com',
+    phone: '+1 (555) 123-4567',
+    sessionsCompleted: 142,
+    active: true,
+    avatar: 'https://randomuser.me/api/portraits/men/32.jpg',
+  },
+  {
+    id: 'P-002',
+    name: 'Maria Garcia',
+    email: 'maria.garcia@email.com',
+    phone: '+1 (555) 987-6543',
+    sessionsCompleted: 98,
+    active: true,
+    avatar: 'https://randomuser.me/api/portraits/women/44.jpg',
+  },
+  {
+    id: 'P-003',
+    name: 'James Wilson',
+    email: 'james.wilson@email.com',
+    phone: '+1 (555) 456-7890',
+    sessionsCompleted: 67,
+    active: false,
+    avatar: 'https://randomuser.me/api/portraits/men/45.jpg',
+  },
+  {
+    id: 'P-004',
+    name: 'Emily Davis',
+    email: 'emily.davis@email.com',
+    phone: '+1 (555) 321-0987',
+    sessionsCompleted: 203,
+    active: true,
+    avatar: 'https://randomuser.me/api/portraits/women/68.jpg',
+  },
+];
+// --- Sample data for operators ---
+const sampleOperators = [
+  {
+    id: 'OP-001',
+    name: 'Sarah Johnson',
+    email: 'sarah.johnson@email.com',
+    phone: '+1 (555) 123-4567',
+    role: 'Operator',
+    lastLogin: '2 hours ago',
+    lastLoginDate: 'Jul 14, 2025',
+    active: true,
+    avatar: 'https://randomuser.me/api/portraits/women/65.jpg',
+  },
+  {
+    id: 'OP-002',
+    name: 'Michael Chen',
+    email: 'michael.chen@email.com',
+    phone: '+1 (555) 987-6543',
+    role: 'Support',
+    lastLogin: '1 day ago',
+    lastLoginDate: 'Jul 13, 2025',
+    active: true,
+    avatar: 'https://randomuser.me/api/portraits/men/36.jpg',
+  },
+  {
+    id: 'OP-003',
+    name: 'Lisa Rodriguez',
+    email: 'lisa.rodriguez@email.com',
+    phone: '+1 (555) 456-7890',
+    role: 'Operator',
+    lastLogin: '3 days ago',
+    lastLoginDate: 'Jul 11, 2025',
+    active: false,
+    avatar: 'https://randomuser.me/api/portraits/women/72.jpg',
+  },
+];
+
+// --- Sample/mock data for reports ---
+const reportKpis = {
+  totalOrders: 1247,
+  totalRevenue: 31175,
+  sessionsCount: 892,
+  topPhotographer: {
+    name: 'Sarah Johnson',
+    sessions: 342,
+  },
+  ordersChange: 12.5,
+  revenueChange: 8.2,
+  sessionsChange: 15.3,
+};
+const reportRevenueTrend = [
+  { week: 'Week 1', revenue: 7500 },
+  { week: 'Week 2', revenue: 8200 },
+  { week: 'Week 3', revenue: 7900 },
+  { week: 'Week 4', revenue: 8100 },
+];
+const reportOrderStatus = [
+  { name: 'Paid', value: 981 },
+  { name: 'Pending', value: 190 },
+  { name: 'Refunded', value: 76 },
+];
+const reportPieColors = ['#4f46e5', '#fbbf24', '#f87171'];
+
 // Animated Counter Hook
 function useAnimatedNumber(target: number, duration = 1000) {
   const [value, setValue] = React.useState(0);
@@ -105,27 +299,14 @@ export default function AdminDashboard() {
     mockSessions = [];
   }
 
-  // Custom Legend for Sessions Distribution
-  const renderSessionsLegend = (props: any) => {
-    const { payload } = props || {};
-    if (!payload || !Array.isArray(payload)) return null;
-    return (
-      <div className={`flex ${isMobile ? 'flex-wrap justify-center' : 'flex-col items-start'} gap-2 mt-4`} style={{ maxWidth: isMobile ? '100%' : 120 }}>
-        {payload.map((entry: any, idx: number) => (
-          <div key={entry?.value || idx} className="flex items-center gap-2 text-xs font-semibold" style={{ minWidth: 80 }}>
-            <span style={{ background: entry?.color, width: 12, height: 12, borderRadius: 6, display: 'inline-block' }}></span>
-            <span style={{ color: entry?.color }}>{entry?.value}</span>
-          </div>
-        ))}
-      </div>
-    );
-  };
-
-  // Simulate filtering for sessions/orders
-  const filteredSessions = (mockSessions || []).filter(s =>
+  // Use fallback if mockSessions is empty or not an array
+  const safeMockSessions = Array.isArray(mockSessions) && mockSessions.length > 0 ? mockSessions : sampleSessionsFallback;
+  const filteredSessions = (safeMockSessions).filter(s =>
     (!statusFilter || s.status === statusFilter) &&
     (!photographerFilter || s.customerDetails.photographer === photographerFilter)
   );
+  const recentSessions = filteredSessions.length > 0 ? filteredSessions : safeMockSessions.slice(0, 3);
+  const allSessions = filteredSessions.length > 0 ? filteredSessions : safeMockSessions.slice(0, 3);
   const filteredOrders = mockOrders.filter(o =>
     !statusFilter || (statusFilter === "Paid" && o.status === "Paid") || (statusFilter === "Pending" && o.status === "Pending") || (statusFilter === "Refunded" && o.status === "Refunded")
   );
@@ -136,7 +317,7 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="h-screen bg-gradient-to-br from-purple-50 to-indigo-100 dark:from-slate-900 dark:to-slate-800 flex flex-col overflow-hidden">
+    <DashboardErrorBoundary>
       {/* Top Header */}
       <div className="bg-white dark:bg-slate-800 border-b border-border p-4 flex justify-between items-center shadow-sm flex-shrink-0">
         <div className="flex items-center gap-3">
@@ -148,13 +329,6 @@ export default function AdminDashboard() {
             <p className="font-bold text-slate-800 dark:text-slate-200 text-base">John Doe</p>
             <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">{new Date().toLocaleDateString()}</p>
           </div>
-          <button
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            className="px-3 py-2 rounded-lg bg-gradient-to-r from-indigo-200 to-purple-200 dark:from-indigo-700 dark:to-purple-700 text-indigo-800 dark:text-white font-semibold shadow hover:scale-105 transition-all"
-            title="Toggle Dark Mode"
-          >
-            {theme === "dark" ? "🌙" : "☀️"}
-          </button>
           <Button 
             onClick={() => { localStorage.removeItem("currentUser"); window.location.href = "/"; }}
             className="px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-2"
@@ -355,7 +529,7 @@ export default function AdminDashboard() {
                       </tr>
                     </thead>
                     <tbody>
-                      {(filteredSessions || []).map(session => (
+                      {(recentSessions || []).map(session => (
                         <tr key={session.id} className="border-b last:border-0 hover:bg-purple-50/30 dark:hover:bg-purple-900/10 transition">
                           <td className="py-4 font-medium">{session.name}</td>
                           <td className="py-4">{session.customerDetails.name}</td>
@@ -421,7 +595,7 @@ export default function AdminDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {(mockSessions || []).map(session => (
+                  {(allSessions || []).map(session => (
                     <tr key={session.id} className="border-b last:border-0">
                       <td className="py-2 font-medium">{session.name}</td>
                       <td className="py-2">{session.customerDetails.name}</td>
@@ -540,8 +714,262 @@ export default function AdminDashboard() {
               )}
             </div>
           )}
+          {/* Manage Photographers Section */}
+          {activeSection === "photographers" && (
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8 border border-purple-100 dark:border-slate-700">
+              <h2 className="font-semibold text-xl mb-6 text-purple-800 dark:text-purple-200">Photographers</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {(samplePhotographers || []).map((p) => (
+                  <div key={p.id} className="bg-white dark:bg-slate-900 rounded-xl shadow-md p-6 flex flex-col items-start border border-purple-100 dark:border-slate-700">
+                    <div className="flex items-center gap-4 mb-2">
+                      <img src={p.avatar} alt={p.name} className="w-12 h-12 rounded-full object-cover border" />
+                      <div>
+                        <div className="font-bold text-lg text-purple-900 dark:text-white">{p.name}</div>
+                        <div className="text-xs text-gray-500">{p.email}</div>
+                        <div className="text-xs text-gray-400">{p.phone}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className="text-xs font-semibold text-indigo-700">Sessions Completed:</span>
+                      <span className="font-bold text-indigo-900 dark:text-indigo-200">{p.sessionsCompleted}</span>
+                    </div>
+                    <div className="flex gap-2 mt-4">
+                      <Button size="sm" variant="outline">View</Button>
+                      <Button size="sm" variant="outline">Edit</Button>
+                      <span className={`ml-2 w-3 h-3 rounded-full ${p.active ? 'bg-green-400' : 'bg-gray-300'}`} title={p.active ? 'Active' : 'Inactive'}></span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {/* Manage Operators Section */}
+          {activeSection === "operators" && (
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8 border border-purple-100 dark:border-slate-700">
+              <h2 className="font-semibold text-xl mb-6 text-purple-800 dark:text-purple-200">Operators</h2>
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-gray-500">
+                      <th className="py-2">Operator</th>
+                      <th className="py-2">Contact</th>
+                      <th className="py-2">Role</th>
+                      <th className="py-2">Last Login</th>
+                      <th className="py-2">Status</th>
+                      <th className="py-2">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(sampleOperators || []).map((op) => (
+                      <tr key={op.id} className="border-b last:border-0">
+                        <td className="py-2 flex items-center gap-3">
+                          <img src={op.avatar} alt={op.name} className="w-8 h-8 rounded-full object-cover border" />
+                          <div>
+                            <div className="font-semibold">{op.name}</div>
+                            <div className="text-xs text-gray-400">{op.id}</div>
+                          </div>
+                        </td>
+                        <td className="py-2">
+                          <div className="text-xs">{op.email}</div>
+                          <div className="text-xs text-gray-400">{op.phone}</div>
+                        </td>
+                        <td className="py-2">
+                          <span className={`px-2 py-1 rounded text-xs font-semibold ${op.role === 'Support' ? 'bg-green-100 text-green-700' : 'bg-indigo-100 text-indigo-700'}`}>{op.role}</span>
+                        </td>
+                        <td className="py-2">
+                          <div className="text-xs">{op.lastLogin}</div>
+                          <div className="text-xs text-gray-400">{op.lastLoginDate}</div>
+                        </td>
+                        <td className="py-2">
+                          <span className={`inline-block w-3 h-3 rounded-full ${op.active ? 'bg-green-400' : 'bg-gray-300'}`} title={op.active ? 'Active' : 'Inactive'}></span>
+                        </td>
+                        <td className="py-2 flex gap-2">
+                          <Button size="sm" variant="outline">View</Button>
+                          <Button size="sm" variant="outline">Edit</Button>
+                          <Button size="sm" variant="destructive">Remove</Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+          {/* Generate Reports Section */}
+          {activeSection === "reports" && (
+            <div className="w-full max-w-6xl mx-auto bg-gradient-to-br from-white via-purple-50 to-indigo-50 dark:from-slate-900 dark:via-purple-950 dark:to-indigo-950 rounded-2xl shadow-xl p-8 md:p-12 mt-4">
+              {/* Report Filters */}
+              <div className="flex flex-wrap gap-4 items-end mb-8">
+                <div className="flex flex-col">
+                  <label className="text-xs font-semibold mb-1">From Date</label>
+                  <input type="date" className="border rounded px-3 py-2 text-sm" defaultValue="2025-07-01" />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-semibold mb-1">To Date</label>
+                  <input type="date" className="border rounded px-3 py-2 text-sm" defaultValue="2025-07-14" />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-semibold mb-1">Report Type</label>
+                  <select className="border rounded px-3 py-2 text-sm">
+                    <option>Session Summary</option>
+                    <option>Revenue</option>
+                    <option>Orders</option>
+                  </select>
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-semibold mb-1">Photographer (Optional)</label>
+                  <select className="border rounded px-3 py-2 text-sm">
+                    <option>All Photographers</option>
+                    <option>Sarah Johnson</option>
+                    <option>Alex Thompson</option>
+                  </select>
+                </div>
+                <Button className="ml-auto px-6 py-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-semibold shadow hover:scale-105 transition-all">Generate Report</Button>
+              </div>
+              {/* KPI Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+                <div className="bg-white/80 dark:bg-slate-800/80 rounded-xl shadow-md p-6 flex flex-col items-start border border-indigo-100 dark:border-slate-700">
+                  <span className="text-xs font-semibold text-indigo-700 mb-2">Total Orders</span>
+                  <span className="text-3xl font-extrabold text-indigo-900 dark:text-white">{reportKpis.totalOrders.toLocaleString()}</span>
+                  <span className="text-xs text-green-600 mt-1">+{reportKpis.ordersChange}% from last period</span>
+                </div>
+                <div className="bg-white/80 dark:bg-slate-800/80 rounded-xl shadow-md p-6 flex flex-col items-start border border-purple-100 dark:border-slate-700">
+                  <span className="text-xs font-semibold text-purple-700 mb-2">Total Revenue</span>
+                  <span className="text-3xl font-extrabold text-purple-900 dark:text-white">₹{reportKpis.totalRevenue.toLocaleString()}</span>
+                  <span className="text-xs text-green-600 mt-1">+{reportKpis.revenueChange}% from last period</span>
+                </div>
+                <div className="bg-white/80 dark:bg-slate-800/80 rounded-xl shadow-md p-6 flex flex-col items-start border border-pink-100 dark:border-slate-700">
+                  <span className="text-xs font-semibold text-pink-700 mb-2">Sessions Count</span>
+                  <span className="text-3xl font-extrabold text-pink-900 dark:text-white">{reportKpis.sessionsCount.toLocaleString()}</span>
+                  <span className="text-xs text-green-600 mt-1">+{reportKpis.sessionsChange}% from last period</span>
+                </div>
+                <div className="bg-white/80 dark:bg-slate-800/80 rounded-xl shadow-md p-6 flex flex-col items-start border border-orange-100 dark:border-slate-700">
+                  <span className="text-xs font-semibold text-orange-700 mb-2">Top Photographer</span>
+                  <span className="text-lg font-bold text-orange-900 dark:text-white">{reportKpis.topPhotographer.name}</span>
+                  <span className="text-xs text-gray-500">{reportKpis.topPhotographer.sessions} sessions completed</span>
+                </div>
+              </div>
+              {/* Charts */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
+                {/* Revenue Trend Bar Chart */}
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6 border border-indigo-100 dark:border-slate-700 flex flex-col min-w-0">
+                  <h3 className="font-semibold text-base md:text-lg mb-4 text-indigo-800 dark:text-indigo-200">Revenue Trend</h3>
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart data={reportRevenueTrend}>
+                      <XAxis dataKey="week" stroke="#6366f1" fontSize={12} tickLine={false} axisLine={false} />
+                      <YAxis stroke="#6366f1" fontSize={12} tickLine={false} axisLine={false} />
+                      <Tooltip contentStyle={{ background: '#ede9fe', borderRadius: 8, border: 'none' }} />
+                      <Bar dataKey="revenue" fill="#6366f1" radius={[8, 8, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                {/* Order Status Breakdown Pie Chart */}
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md p-6 border border-purple-100 dark:border-slate-700 flex flex-col min-w-0">
+                  <h3 className="font-semibold text-base md:text-lg mb-4 text-purple-800 dark:text-purple-200">Order Status Breakdown</h3>
+                  <ResponsiveContainer width="100%" height={220}>
+                    <PieChart>
+                      <Pie data={reportOrderStatus} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} innerRadius={36} label fontSize={12}>
+                        {reportOrderStatus.map((entry, idx) => (
+                          <Cell key={`cell-status-${idx}`} fill={reportPieColors[idx % reportPieColors.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip contentStyle={{ background: '#ede9fe', borderRadius: 8, border: 'none' }} />
+                      <Legend verticalAlign="bottom" height={32} iconType="circle" />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+              {/* Export Options */}
+              <div className="flex gap-4 mt-4">
+                <Button className="bg-gradient-to-r from-red-500 to-pink-500 text-white font-semibold shadow hover:scale-105 transition-all">Download PDF</Button>
+                <Button className="bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold shadow hover:scale-105 transition-all">Export Excel</Button>
+                <Button className="bg-gradient-to-r from-gray-400 to-gray-600 text-white font-semibold shadow hover:scale-105 transition-all">Print</Button>
+              </div>
+            </div>
+          )}
+          {/* Manage Photographers Section */}
+          {activeSection === "photographers" && (
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8 border border-purple-100 dark:border-slate-700">
+              <h2 className="font-semibold text-xl mb-6 text-purple-800 dark:text-purple-200">Photographers</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {(samplePhotographers || []).map((p) => (
+                  <div key={p.id} className="bg-white dark:bg-slate-900 rounded-xl shadow-md p-6 flex flex-col items-start border border-purple-100 dark:border-slate-700">
+                    <div className="flex items-center gap-4 mb-2">
+                      <img src={p.avatar} alt={p.name} className="w-12 h-12 rounded-full object-cover border" />
+                      <div>
+                        <div className="font-bold text-lg text-purple-900 dark:text-white">{p.name}</div>
+                        <div className="text-xs text-gray-500">{p.email}</div>
+                        <div className="text-xs text-gray-400">{p.phone}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className="text-xs font-semibold text-indigo-700">Sessions Completed:</span>
+                      <span className="font-bold text-indigo-900 dark:text-indigo-200">{p.sessionsCompleted}</span>
+                    </div>
+                    <div className="flex gap-2 mt-4">
+                      <Button size="sm" variant="outline">View</Button>
+                      <Button size="sm" variant="outline">Edit</Button>
+                      <span className={`ml-2 w-3 h-3 rounded-full ${p.active ? 'bg-green-400' : 'bg-gray-300'}`} title={p.active ? 'Active' : 'Inactive'}></span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {/* Manage Operators Section */}
+          {activeSection === "operators" && (
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8 border border-purple-100 dark:border-slate-700">
+              <h2 className="font-semibold text-xl mb-6 text-purple-800 dark:text-purple-200">Operators</h2>
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-gray-500">
+                      <th className="py-2">Operator</th>
+                      <th className="py-2">Contact</th>
+                      <th className="py-2">Role</th>
+                      <th className="py-2">Last Login</th>
+                      <th className="py-2">Status</th>
+                      <th className="py-2">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(sampleOperators || []).map((op) => (
+                      <tr key={op.id} className="border-b last:border-0">
+                        <td className="py-2 flex items-center gap-3">
+                          <img src={op.avatar} alt={op.name} className="w-8 h-8 rounded-full object-cover border" />
+                          <div>
+                            <div className="font-semibold">{op.name}</div>
+                            <div className="text-xs text-gray-400">{op.id}</div>
+                          </div>
+                        </td>
+                        <td className="py-2">
+                          <div className="text-xs">{op.email}</div>
+                          <div className="text-xs text-gray-400">{op.phone}</div>
+                        </td>
+                        <td className="py-2">
+                          <span className={`px-2 py-1 rounded text-xs font-semibold ${op.role === 'Support' ? 'bg-green-100 text-green-700' : 'bg-indigo-100 text-indigo-700'}`}>{op.role}</span>
+                        </td>
+                        <td className="py-2">
+                          <div className="text-xs">{op.lastLogin}</div>
+                          <div className="text-xs text-gray-400">{op.lastLoginDate}</div>
+                        </td>
+                        <td className="py-2">
+                          <span className={`inline-block w-3 h-3 rounded-full ${op.active ? 'bg-green-400' : 'bg-gray-300'}`} title={op.active ? 'Active' : 'Inactive'}></span>
+                        </td>
+                        <td className="py-2 flex gap-2">
+                          <Button size="sm" variant="outline">View</Button>
+                          <Button size="sm" variant="outline">Edit</Button>
+                          <Button size="sm" variant="destructive">Remove</Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
           {/* Placeholder for other sections */}
-          {!(activeSection === "dashboard" || activeSection === "sessions" || activeSection === "orders" || activeSection === "pricing") && (
+          {!(activeSection === "dashboard" || activeSection === "sessions" || activeSection === "orders" || activeSection === "pricing" || activeSection === "photographers" || activeSection === "operators" || activeSection === "reports") && (
             <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8 border border-purple-100 dark:border-slate-700 text-gray-500 text-center">Section coming soon...</div>
           )}
           {/* Modal for viewing details/photos */}
@@ -581,6 +1009,6 @@ export default function AdminDashboard() {
           )}
         </main>
       </div>
-    </div>
+    </DashboardErrorBoundary>
   );
 } 
