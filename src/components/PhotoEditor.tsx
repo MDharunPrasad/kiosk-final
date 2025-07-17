@@ -96,6 +96,7 @@ export function PhotoEditor({
   const [selectedImageIndex, setSelectedImageIndex] = useState(initialSelectedIndex); // This line must be present
   const [activeTool, setActiveTool] = useState<string>("");
   const [isImageLoaded, setIsImageLoaded] = useState(false);
+  const [isRestoringState, setIsRestoringState] = useState(false);
   const [currentImages, setCurrentImages] = useState<string[]>(session.images);
   const [editedImages, setEditedImages] = useState<Set<number>>(
     new Set(session.editedImages || [])
@@ -1293,15 +1294,7 @@ export function PhotoEditor({
     setIsCropping(hasCrop);
     
     // Enable edits if main image is present
-    const hasMainImage = !!mainImage;
-    setIsImageLoaded(hasMainImage);
-    
-    // Force a re-render to ensure UI state is updated
-    setTimeout(() => {
-      setSelectedBorder(prev => prev);
-      setSelectedFrame(prev => prev);
-      setSelectedFilter(prev => prev);
-    }, 0);
+    setIsImageLoaded(!!mainImage);
   };
 
   // Helper to extract border info from a Fabric.js JSON state
@@ -1326,30 +1319,29 @@ export function PhotoEditor({
   // Undo handler
   const handleUndo = () => {
     if (undoStack.length === 0 || !fabricCanvasRef.current) return;
+    setIsRestoringState(true);
     const prevState = undoStack[undoStack.length - 1];
     setUndoStack(undoStack.slice(0, -1));
     const currentState = JSON.parse(JSON.stringify(fabricCanvasRef.current.toJSON()));
     setRedoStack(r => [...r, currentState]);
     console.log('Undo: loading prevState', prevState);
-    
-    // Check if main image exists in the state before loading
     const hasMainImageInState = prevState.objects && prevState.objects.some((obj: any) => obj.id === 'mainImage');
-    
     if (hasMainImageInState) {
-      // State has main image, load directly
       fabricCanvasRef.current.loadFromJSON(prevState, () => {
         fabricCanvasRef.current.renderAll();
         syncToolStateWithCanvas();
         setIsImageLoaded(true);
+        setIsRestoringState(false);
       });
     } else {
-      // State doesn't have main image, reload image first then apply state
       if (currentImages[selectedImageIndex]) {
         loadImageToCanvas(currentImages[selectedImageIndex], true).then(() => {
           setTimeout(() => {
             fabricCanvasRef.current.loadFromJSON(prevState, () => {
               fabricCanvasRef.current.renderAll();
               syncToolStateWithCanvas();
+              setIsImageLoaded(true);
+              setIsRestoringState(false);
             });
           }, 50);
         });
@@ -1360,30 +1352,29 @@ export function PhotoEditor({
   // Redo handler
   const handleRedo = () => {
     if (redoStack.length === 0 || !fabricCanvasRef.current) return;
+    setIsRestoringState(true);
     const nextState = redoStack[redoStack.length - 1];
     setRedoStack(redoStack.slice(0, -1));
     const currentState = JSON.parse(JSON.stringify(fabricCanvasRef.current.toJSON()));
     setUndoStack(u => [...u, currentState]);
     console.log('Redo: loading nextState', nextState);
-    
-    // Check if main image exists in the state before loading
     const hasMainImageInState = nextState.objects && nextState.objects.some((obj: any) => obj.id === 'mainImage');
-    
     if (hasMainImageInState) {
-      // State has main image, load directly
       fabricCanvasRef.current.loadFromJSON(nextState, () => {
         fabricCanvasRef.current.renderAll();
         syncToolStateWithCanvas();
         setIsImageLoaded(true);
+        setIsRestoringState(false);
       });
     } else {
-      // State doesn't have main image, reload image first then apply state
       if (currentImages[selectedImageIndex]) {
         loadImageToCanvas(currentImages[selectedImageIndex], true).then(() => {
           setTimeout(() => {
             fabricCanvasRef.current.loadFromJSON(nextState, () => {
               fabricCanvasRef.current.renderAll();
               syncToolStateWithCanvas();
+              setIsImageLoaded(true);
+              setIsRestoringState(false);
             });
           }, 50);
         });
@@ -1868,7 +1859,7 @@ export function PhotoEditor({
           <div className="flex-1 flex flex-col items-center justify-center bg-gray-100 dark:bg-slate-600 p-4">
             <div className="bg-white rounded-lg shadow-lg relative">
               <canvas ref={canvasRef} className="border border-gray-300 rounded-lg" />
-              {!isImageLoaded && (
+              {!isImageLoaded && !isRestoringState && (
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="text-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2"></div>
