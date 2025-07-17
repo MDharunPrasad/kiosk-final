@@ -273,6 +273,33 @@ function useAnimatedNumber(target: number, duration = 1000) {
   return value;
 }
 
+// --- Settings section state (demo only) ---
+const [settingsProfile, setSettingsProfile] = React.useState({
+  name: 'John Doe',
+  email: 'admin@email.com',
+  password: '',
+});
+const [settingsNotifications, setSettingsNotifications] = React.useState({
+  email: true,
+  sms: false,
+  push: true,
+});
+const handleSettingsChange = (field: string, value: any) => {
+  setSettingsProfile((prev) => ({ ...prev, [field]: value }));
+};
+const handleNotifChange = (field: string, value: boolean) => {
+  setSettingsNotifications((prev) => ({ ...prev, [field]: value }));
+};
+const handleSettingsSave = () => {
+  // Demo only: show a toast or alert
+  alert('Settings saved! (demo only)');
+};
+const handleSettingsDelete = () => {
+  if (window.confirm('Are you sure you want to delete your account? This cannot be undone.')) {
+    alert('Account deleted! (demo only)');
+  }
+};
+
 export default function AdminDashboard() {
   const [activeSection, setActiveSection] = useState("dashboard");
   const [modal, setModal] = useState<{ type: "session" | "order"; data: any } | null>(null);
@@ -968,8 +995,56 @@ export default function AdminDashboard() {
               </div>
             </div>
           )}
+          {/* Settings Section */}
+          {activeSection === "settings" && (
+            <div className="w-full max-w-2xl mx-auto bg-gradient-to-br from-white via-purple-50 to-indigo-50 dark:from-slate-900 dark:via-purple-950 dark:to-indigo-950 rounded-2xl shadow-xl p-8 md:p-12 mt-4">
+              <h2 className="font-semibold text-2xl mb-8 text-purple-800 dark:text-purple-200">Settings</h2>
+              {/* Profile Settings */}
+              <div className="mb-8">
+                <h3 className="font-semibold text-lg mb-4 text-indigo-800 dark:text-indigo-200">Profile</h3>
+                <div className="flex flex-col gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold mb-1">Name</label>
+                    <input type="text" className="border rounded px-3 py-2 w-full" value={settingsProfile.name} onChange={e => handleSettingsChange('name', e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold mb-1">Email</label>
+                    <input type="email" className="border rounded px-3 py-2 w-full" value={settingsProfile.email} onChange={e => handleSettingsChange('email', e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold mb-1">Change Password</label>
+                    <input type="password" className="border rounded px-3 py-2 w-full" value={settingsProfile.password} onChange={e => handleSettingsChange('password', e.target.value)} placeholder="New password" />
+                  </div>
+                </div>
+              </div>
+              {/* Notification Preferences */}
+              <div className="mb-8">
+                <h3 className="font-semibold text-lg mb-4 text-indigo-800 dark:text-indigo-200">Notifications</h3>
+                <div className="flex flex-col gap-3">
+                  <label className="flex items-center gap-3">
+                    <input type="checkbox" checked={settingsNotifications.email} onChange={e => handleNotifChange('email', e.target.checked)} />
+                    <span>Email Notifications</span>
+                  </label>
+                  <label className="flex items-center gap-3">
+                    <input type="checkbox" checked={settingsNotifications.sms} onChange={e => handleNotifChange('sms', e.target.checked)} />
+                    <span>SMS Notifications</span>
+                  </label>
+                  <label className="flex items-center gap-3">
+                    <input type="checkbox" checked={settingsNotifications.push} onChange={e => handleNotifChange('push', e.target.checked)} />
+                    <span>Push Notifications</span>
+                  </label>
+                </div>
+              </div>
+              {/* Account Actions */}
+              <div className="flex gap-4 mt-8">
+                <Button className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-semibold shadow hover:scale-105 transition-all" onClick={handleSettingsSave}>Save Changes</Button>
+                <Button className="bg-gradient-to-r from-red-500 to-pink-500 text-white font-semibold shadow hover:scale-105 transition-all" onClick={() => { localStorage.removeItem('currentUser'); window.location.href = '/'; }}>Logout</Button>
+                <Button className="bg-gradient-to-r from-gray-400 to-gray-600 text-white font-semibold shadow hover:scale-105 transition-all" onClick={handleSettingsDelete}>Delete Account</Button>
+              </div>
+            </div>
+          )}
           {/* Placeholder for other sections */}
-          {!(activeSection === "dashboard" || activeSection === "sessions" || activeSection === "orders" || activeSection === "pricing" || activeSection === "photographers" || activeSection === "operators" || activeSection === "reports") && (
+          {!(activeSection === "dashboard" || activeSection === "sessions" || activeSection === "orders" || activeSection === "pricing" || activeSection === "photographers" || activeSection === "operators" || activeSection === "reports" || activeSection === "settings") && (
             <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8 border border-purple-100 dark:border-slate-700 text-gray-500 text-center">Section coming soon...</div>
           )}
           {/* Modal for viewing details/photos */}
