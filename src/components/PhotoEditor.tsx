@@ -1338,6 +1338,17 @@ export function PhotoEditor({
     }
   };
 
+  // Helper to reset editor to a valid state
+  const resetEditorToValidState = () => {
+    if (currentImages[selectedImageIndex]) {
+      loadImageToCanvas(currentImages[selectedImageIndex]);
+      setUndoStack([]);
+      setRedoStack([]);
+      setIsImageLoaded(true);
+      alert('Editor state was invalid. The image has been reset.');
+    }
+  };
+
   // Undo handler
   const handleUndo = () => {
     if (undoStack.length === 0 || !fabricCanvasRef.current) return;
@@ -1348,20 +1359,13 @@ export function PhotoEditor({
     setRedoStack(r => [...r, currentState]);
     fabricCanvasRef.current.loadFromJSON(prevState, () => {
       fabricCanvasRef.current.renderAll();
-      const mainImage = fabricCanvasRef.current.getObjects().find((obj: any) => obj.id === 'mainImage');
-      if (!mainImage) {
-        alert('Undo failed: Main image missing or state corrupted. The editor will reset.');
-        if (currentImages[selectedImageIndex]) {
-          loadImageToCanvas(currentImages[selectedImageIndex]);
-        }
-        setUndoStack([]);
-        setRedoStack([]);
-        setIsRestoringState(false);
-        return;
-      }
       syncToolStateWithCanvas();
-      setIsImageLoaded(true);
+      const mainImage = fabricCanvasRef.current.getObjects().find((obj: any) => obj.id === 'mainImage');
+      setIsImageLoaded(!!mainImage);
       setIsRestoringState(false);
+      if (!mainImage) {
+        resetEditorToValidState();
+      }
     });
   };
 
@@ -1375,20 +1379,13 @@ export function PhotoEditor({
     setUndoStack(u => [...u, currentState]);
     fabricCanvasRef.current.loadFromJSON(nextState, () => {
       fabricCanvasRef.current.renderAll();
-      const mainImage = fabricCanvasRef.current.getObjects().find((obj: any) => obj.id === 'mainImage');
-      if (!mainImage) {
-        alert('Redo failed: Main image missing or state corrupted. The editor will reset.');
-        if (currentImages[selectedImageIndex]) {
-          loadImageToCanvas(currentImages[selectedImageIndex]);
-        }
-        setUndoStack([]);
-        setRedoStack([]);
-        setIsRestoringState(false);
-        return;
-      }
       syncToolStateWithCanvas();
-      setIsImageLoaded(true);
+      const mainImage = fabricCanvasRef.current.getObjects().find((obj: any) => obj.id === 'mainImage');
+      setIsImageLoaded(!!mainImage);
       setIsRestoringState(false);
+      if (!mainImage) {
+        resetEditorToValidState();
+      }
     });
   };
 
