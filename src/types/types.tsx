@@ -23,3 +23,19 @@ export interface ApiPhoto {
 export interface PhotographerDashboardProps {
   username?: string;
 }
+
+export interface AuthContextType {
+  user: {
+    name?: string;
+    username?: string;
+    email?: string;
+    role?: string;
+    user_id?: number;
+  } | null;
+  token: string | null;
+  isLoading: boolean;
+  isAuthenticated: boolean;
+  login: (credentials: any) => Promise<any>;
+  logout: () => void;
+  refreshToken: () => Promise<string>;
+}

@@ -1,77 +1,56 @@
-import { useState, useEffect } from "react";
-import { AuthDialog } from "@/components/AuthDialog";
-import { PhotographerDashboard } from "@/components/PhotographerDashboard";
-import { CounterStaffDashboard } from "@/components/CounterStaffDashboard";
-import AuthService, { User } from "@/services/AuthService";
-
-interface AuthState {
-  user: User | null;
-  token: string | null;
-}
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
+import AuthDialog from "@/components/AuthDialog";
 
 const Index = () => {
-  const [authState, setAuthState] = useState<AuthState>({
-    user: null,
-    token: null,
-  });
+  const { user, isLoading, isAuthenticated, login } = useAuth();
+  const navigate = useNavigate();
 
-  const authService = AuthService.getInstance();
+  // If user is already logged in, redirect to their dashboard
+  useEffect(() => {
+    if (user && isAuthenticated && !isLoading) {
+      switch (user.role) {
+        case "photographer":
+          navigate("/photographer");
+          break;
+        case "operator":
+          navigate("/operator");
+          break;
+        case "admin":
+          navigate("/admin");
+          break;
+        default:
+          break;
+      }
+    }
+  }, [user, isAuthenticated, isLoading, navigate]);
 
-  const handleLogin = (user: User, token: string) => {
-    setAuthState({ user, token });
-  };
-
-  const handleLogout = () => {
-    authService.logout();
-    setAuthState({ user: null, token: null });
-  };
-
-  // Pass both user and token to dashboards for API calls
-  if (authState.user?.role === "photographer") {
-    return (
-      <PhotographerDashboard 
-        username={authState.user.username} 
-        
-       
-      />
-    );
-  }
-
-  if (authState.user?.role === "operator") {
-    return (
-      <CounterStaffDashboard 
-        username={authState.user.username} 
-   
-       
-      />
-    );
-  }
-
-  if (authState.user?.role === "admin") {
+  // Show loading while checking auth
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Admin Dashboard</h1>
-          <p className="text-muted-foreground mb-4">
-            Welcome, {authState.user.username}!
-          </p>
-          <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">
-              Token: {authState.token?.substring(0, 50)}...
-            </p>
-            <button
-              onClick={handleLogout}
-              className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90"
-            >
-              Logout
-            </button>
-          </div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading...</p>
         </div>
       </div>
     );
   }
 
-  return <AuthDialog onLogin={handleLogin} />;
+  // If user is already authenticated, don't show auth dialog
+  if (user && isAuthenticated) {
+    return null;
+  }
+
+  // Handle successful login - Let the AuthContext handle navigation
+  const handleLoginSuccess = (loggedInUser, token) => {
+    console.log("Login successful:", loggedInUser, token);
+    // Don't navigate here - let the useEffect handle it when the context updates
+    // The AuthContext should already be updated by the LoginForm component
+  };
+
+  return <AuthDialog onLogin={handleLoginSuccess} />;
 };
 
 export default Index;

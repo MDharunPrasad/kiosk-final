@@ -6,6 +6,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Upload, X, ArrowLeft } from "lucide-react";
 import { createSession, deleteSession } from "@/apis/sessions";
 import { createPhoto } from "@/apis/photos";
+import { useAuth } from "@/context/AuthContext";
+import { AuthContextType } from "@/types/types";
+
 interface CreateSessionFormProps {
   onCancel: () => void;
   onSessionCreated: (session: any) => void;
@@ -17,6 +20,8 @@ export function CreateSessionForm({ onCancel, onSessionCreated,fetchSessions }: 
   const [customerName, setCustomerName] = useState("");
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+   const { user } = useAuth() as AuthContextType;
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
@@ -33,7 +38,7 @@ export function CreateSessionForm({ onCancel, onSessionCreated,fetchSessions }: 
       return;
     }
 
-    const photographer_id="6"
+    const photographer_id= user?.user_id.toString(); // Use user_id from auth context, default to 0 if not available
      const response = await createSession(photographer_id,customerName)
      if (response.id){
       try {

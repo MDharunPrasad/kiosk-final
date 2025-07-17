@@ -1,4 +1,4 @@
-// auth.service.ts
+// AuthService.js
 export interface LoginRequest {
   username: string;
   password: string;
@@ -12,6 +12,7 @@ export interface LoginResponse {
 export interface User {
   username: string;
   role: string;
+  user_id?: number;
 }
 
 export interface AuthState {
@@ -47,7 +48,7 @@ class AuthService {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Login failed: ${response.status}`);
+        throw new Error(errorData.detail || errorData.message || `Login failed: ${response.status}`);
       }
 
       const data: LoginResponse = await response.json();
@@ -73,6 +74,7 @@ class AuthService {
       return {
         username: decoded.username,
         role: decoded.role,
+        user_id: decoded.user_id,
       };
     } catch (error) {
       console.error('Token decode error:', error);
@@ -141,7 +143,7 @@ class AuthService {
       // Check if token has required fields
       if (!decoded.username || !decoded.role) return false;
       
-      // Check if token is expired
+      // Check if token is expired (if exp field exists)
       if (decoded.exp && decoded.exp < Date.now() / 1000) {
         return false;
       }
@@ -170,7 +172,11 @@ class AuthService {
       }
       
       const data: LoginResponse = await response.json();
+      
+      // Decode new token and update user data
+      const user = this.decodeToken(data.access_token);
       this.setToken(data.access_token);
+      this.setUserData(user);
       
       return data.access_token;
     } catch (error) {

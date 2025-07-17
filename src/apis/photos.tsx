@@ -35,6 +35,60 @@ const searchPhotos = async (sessionId: string): Promise<ApiPhoto[]> => {
   }
 };
 
+
+async function createPhoto(sessionId: string, files: File[]): Promise<boolean> {
+  try {
+    const formData = new FormData();
+    // Append each file to FormData under the 'image_file' key to send as a list
+    files.forEach((file) => {
+      formData.append('image_file', file);
+    });
+    
+    const response = await fetch(`${BASE_URL}/photos/upload/${sessionId}`, {
+      method: 'POST',
+      headers: {
+        // Do not set 'Content-Type' for FormData; browser sets it automatically
+        // Add any necessary auth headers
+        // 'Authorization': `Bearer ${token}`
+      },
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return true;
+  } catch (error) {
+    console.error('Error creating photo:', error);
+    throw error;
+  }
+}
+
+async function savePhoto(photoid: string, file: File): Promise<boolean> {
+  try {
+    const formData = new FormData();
+      formData.append('image_file', file);
+    
+    const response = await fetch(`${BASE_URL}/photos/${photoid}/edit`, {
+      method: 'PUT',
+      headers: {
+        // Do not set 'Content-Type' for FormData; browser sets it automatically
+        // Add any necessary auth headers
+        // 'Authorization': `Bearer ${token}`
+      },
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return true;
+  } catch (error) {
+    console.error('Error saving photo:', error);
+    throw error;
+  }
+}
+
 async function deletePhoto(photoId: string): Promise<void> {
   try {
     const response = await fetch(`${BASE_URL}/photos/${photoId}`, {
@@ -54,32 +108,4 @@ async function deletePhoto(photoId: string): Promise<void> {
     throw error;
   }
 }
-
-async function createPhoto(sessionId: string, files: File[]): Promise<boolean> {
-  try {
-    const formData = new FormData();
-    // Append each file to FormData under the 'image_file' key to send as a list
-    files.forEach((file) => {
-      formData.append('image_file', file);
-    });
-
-    const response = await fetch(`${BASE_URL}/photos/upload/${sessionId}`, {
-      method: 'POST',
-      headers: {
-        // Do not set 'Content-Type' for FormData; browser sets it automatically
-        // Add any necessary auth headers
-        // 'Authorization': `Bearer ${token}`
-      },
-      body: formData,
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    return true;
-  } catch (error) {
-    console.error('Error creating photo:', error);
-    throw error;
-  }
-}
-export { searchPhotos, deletePhoto, createPhoto };
+export { searchPhotos, deletePhoto, createPhoto,savePhoto };
