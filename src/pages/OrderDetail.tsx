@@ -71,8 +71,8 @@ export default function OrderDetail() {
           Back to Orders
         </button>
       </div>
-      <div className="w-full max-w-4xl flex flex-col items-center justify-center min-h-[60vh]"> {/* reduced max-w-5xl to max-w-4xl */}
-        <div className="bg-white rounded-2xl shadow-2xl p-6 md:p-10 flex flex-col md:flex-row gap-8 md:gap-10 border border-gray-100 relative max-w-4xl w-full"> {/* reduced padding and max-w-6xl to max-w-4xl */}
+      <div className="w-full max-w-4xl flex flex-col items-center justify-center min-h-[700px]"> {/* increased min-h for more height */}
+        <div className="bg-white rounded-2xl shadow-2xl p-6 md:p-10 flex flex-col md:flex-row gap-8 md:gap-10 border border-gray-100 relative max-w-4xl w-full items-stretch min-h-[600px]"> {/* increased min-h for more height */}
           {/* Left: Images Preview Column */}
           <div className="flex-1 min-w-0 flex flex-col">
             <div className="flex items-center gap-3 mb-8">
@@ -80,7 +80,7 @@ export default function OrderDetail() {
               <h1 className="text-4xl font-extrabold tracking-tight text-gray-900">M2 Photography</h1>
             </div>
             <h2 className="font-semibold text-2xl mb-6 text-gray-800">Ordered Photos</h2>
-            <div className="border rounded-xl bg-gray-50 p-0 flex items-center justify-center" style={{ aspectRatio: '1 / 1', width: '100%', maxWidth: 340, minWidth: 220, minHeight: 220, maxHeight: 340 }}>
+            <div className="border rounded-xl bg-white p-0 flex items-center justify-center h-full min-h-[500px]" style={{ width: '100%', maxWidth: 340, minWidth: 220 }}>
               <div className="overflow-y-auto custom-scrollbar w-full h-full" style={{ aspectRatio: '1 / 1' }}>
                 <div className="grid grid-cols-3 gap-4 p-4"> {/* Always 3 columns */}
                   {images.length === 0 && <div className="text-gray-400">No images</div>}
