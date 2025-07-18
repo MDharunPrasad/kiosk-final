@@ -83,7 +83,7 @@ export default function Cart() {
             </Button>
             <div className="bg-white rounded-2xl shadow-2xl p-8 md:p-12 flex flex-col md:flex-row gap-10 md:gap-12 border border-gray-100">
                 {/* Left: Cart Items */}
-                <div className="flex-1 min-w-0 flex flex-col">
+                <div className="flex-1 min-w-0 flex flex-col max-h-[70vh] overflow-y-auto pr-2">
                     {/* Invoice Header */}
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-8">
                         <div>

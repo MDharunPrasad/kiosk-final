@@ -23,11 +23,13 @@ export default function OrderConfirmation() {
             </div>
             <h2 className="font-semibold text-lg mb-4 text-gray-800">Your Ordered Photos</h2>
             <div className="overflow-y-auto max-h-[400px] pr-2 border rounded-lg bg-gray-50">
-              <div className="flex flex-col gap-3 p-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 p-2">
                 {cartItems.map((item: any) => (
-                  <div key={item.id} className="flex items-center gap-3 bg-white rounded shadow-sm p-2">
-                    <img src={item.thumb} alt={item.name} className="w-16 h-16 object-cover rounded border" />
-                    <div className="text-sm font-medium text-gray-800 truncate">{item.name}</div>
+                  <div key={item.id} className="relative bg-white rounded shadow-sm p-2 flex flex-col items-center">
+                    <img src={item.thumb} alt={item.name} className="w-24 h-24 object-cover rounded border mb-2" />
+                    <div className="text-xs font-medium text-gray-800 truncate text-center mb-1">{item.name}</div>
+                    {/* Print count tag */}
+                    <span className="absolute top-2 right-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow">x{item.quantity}</span>
                   </div>
                 ))}
               </div>

@@ -6,9 +6,9 @@ import { ArrowLeft } from "lucide-react";
 
 const STATUS_OPTIONS = [
   { label: "All Statuses", value: "all" },
+  { label: "Completed", value: "Completed" },
+  { label: "Cancelled", value: "Cancelled" },
   { label: "Pending", value: "Pending" },
-  { label: "Paid", value: "Paid" },
-  { label: "Refunded", value: "Refunded" },
 ];
 const SORT_OPTIONS = [
   { label: "Name A-Z", value: "az" },
@@ -41,7 +41,7 @@ export default function OrdersList() {
       {/* Subtle back button above card */}
       <div className="w-full max-w-4xl flex items-start mb-2">
         <button
-          onClick={() => navigate(-1)}
+          onClick={() => navigate("/operator")}
           className="flex items-center gap-2 text-gray-500 hover:text-green-700 font-semibold text-base px-4 py-2 rounded-lg bg-white shadow border border-gray-200 transition-all"
         >
           <ArrowLeft size={20} />
@@ -49,7 +49,7 @@ export default function OrdersList() {
         </button>
       </div>
       <div className="w-full max-w-4xl flex flex-col items-center justify-center min-h-[60vh]">
-        <div className="bg-white rounded-2xl shadow-xl p-10 border border-gray-100 flex flex-col items-center w-full">
+        <div className="bg-white rounded-2xl shadow-xl p-10 border border-gray-100 flex flex-col items-center w-full h-[70vh] max-h-[700px]">
           {/* Filter Row */}
           <div className="w-full flex flex-col md:flex-row md:items-center md:justify-between gap-6 mb-8 p-6 bg-white rounded-xl shadow border border-gray-100">
             <div className="flex flex-col md:flex-row md:items-center gap-6 w-full">
@@ -90,36 +90,39 @@ export default function OrdersList() {
             </div>
           </div>
           <h2 className="font-semibold text-2xl mb-6 text-green-800">Completed Orders</h2>
-          <table className="w-full text-lg">
-            <thead>
-              <tr className="text-left text-gray-500">
-                <th className="py-3">Order ID</th>
-                <th className="py-3">Customer</th>
-                <th className="py-3">Date</th>
-                <th className="py-3">Amount</th>
-                <th className="py-3">Status</th>
-                <th className="py-3">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredOrders.map(order => (
-                <tr key={order.id} className="border-b last:border-0 hover:bg-green-50/40 transition">
-                  <td className="py-3 font-medium">{order.id}</td>
-                  <td className="py-3">{order.customer}</td>
-                  <td className="py-3">{order.date}</td>
-                  <td className="py-3">${order.amount.toFixed(2)}</td>
-                  <td className="py-3">
-                    <span className={`px-3 py-1 rounded text-base font-semibold ${order.status === "Paid" ? "bg-green-100 text-green-700" : order.status === "Pending" ? "bg-yellow-100 text-yellow-700" : "bg-purple-100 text-purple-700"}`}>{order.status}</span>
-                  </td>
-                  <td className="py-3">
-                    <Button size="lg" variant="outline" onClick={() => navigate(`/order-detail/${order.id}`)}>
-                      View
-                    </Button>
-                  </td>
+          {/* The table area below is scrollable. Adjust maxHeight as needed for your layout. */}
+          <div className="w-full flex-1 overflow-y-auto min-h-0" style={{ maxHeight: "350px" }}>
+            <table className="w-full text-lg">
+              <thead>
+                <tr className="text-left text-gray-500">
+                  <th className="py-3">Order ID</th>
+                  <th className="py-3">Customer</th>
+                  <th className="py-3">Date</th>
+                  <th className="py-3">Amount</th>
+                  <th className="py-3">Status</th>
+                  <th className="py-3">Action</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filteredOrders.map(order => (
+                  <tr key={order.id} className="border-b last:border-0 hover:bg-green-50/40 transition">
+                    <td className="py-3 font-medium">{order.id}</td>
+                    <td className="py-3">{order.customer}</td>
+                    <td className="py-3">{order.date}</td>
+                    <td className="py-3">${order.amount.toFixed(2)}</td>
+                    <td className="py-3">
+                      <span className={`px-3 py-1 rounded text-base font-semibold ${order.status === "Paid" ? "bg-green-100 text-green-700" : order.status === "Pending" ? "bg-yellow-100 text-yellow-700" : "bg-purple-100 text-purple-700"}`}>{order.status}</span>
+                    </td>
+                    <td className="py-3">
+                      <Button size="lg" variant="outline" onClick={() => navigate(`/order-detail/${order.id}`)}>
+                        View
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>

@@ -44,6 +44,16 @@ export const mockSessions: Session[] = [
     images: [
       "https://images.unsplash.com/photo-1472396961693-142e6e269027?w=800&h=600&fit=crop",
       "https://images.unsplash.com/photo-1582562124811-c09040d0a901?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1472396961693-142e6e269027?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1582562124811-c09040d0a901?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1472396961693-142e6e269027?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1582562124811-c09040d0a901?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1472396961693-142e6e269027?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1582562124811-c09040d0a901?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1472396961693-142e6e269027?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1582562124811-c09040d0a901?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1472396961693-142e6e269027?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1582562124811-c09040d0a901?w=800&h=600&fit=crop",
     ],
     customerDetails: {
       name: "Johnson Family",
@@ -589,9 +599,8 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
             </div>
 
             {/* Right Sidebar - Enhanced Thumbnails */}
-            <div className="w-72 lg:w-80 p-4 border-l border-border bg-gradient-to-b from-gray-50 to-gray-100 dark:from-slate-700 dark:to-slate-800 overflow-y-auto flex-shrink-0">
+            <div className="w-72 lg:w-80 p-4 border-l border-border bg-gradient-to-b from-gray-50 to-gray-100 dark:from-slate-700 dark:to-slate-800 flex flex-col flex-shrink-0 min-h-0">
               <h3 className="text-base font-bold mb-4 text-slate-800 dark:text-white">Photos ({selectedSession.images.length})</h3>
-              
               {/* Action Buttons */}
               <div className="mb-4 space-y-2">
                 <Button
@@ -602,86 +611,97 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
                   Edit Photos
                 </Button>
               </div>
-
-              {/* Photo Thumbnails */}
-              <div className="grid grid-cols-2 gap-2 lg:gap-3">
-                {selectedSession.images.map((image, index) => {
-                  const isSelected = (selectedPhotos[selectedSession.id] || []).includes(index);
-                  return (
-                    <div
-                      key={index}
-                      className={`relative rounded-lg overflow-hidden transition-all duration-200 ${
-                        isSelected
-                          ? "ring-2 ring-blue-400 bg-blue-50"
-                          : "bg-white"
-                      }`}
-                      onClick={() => setCurrentImageIndex(index)}
-                    >
-                      {/* Static tick box for selection */}
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => {
-                          setSelectedPhotos((prev) => {
-                            const current = prev[selectedSession.id] || [];
-                            if (current.includes(index)) {
-                              // Deselect
-                              return { ...prev, [selectedSession.id]: current.filter(i => i !== index) };
-                            } else {
-                              // Select
-                              return { ...prev, [selectedSession.id]: [...current, index] };
-                            }
-                          });
-                        }}
-                        className="absolute top-1 left-1 z-10 w-5 h-5 accent-green-500 bg-white border border-gray-300 rounded focus:ring-2 focus:ring-green-400 cursor-pointer"
-                        style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}
-                      />
-                      {/* Square aspect ratio wrapper, object-cover for gallery look */}
-                      <div className="w-full h-24 lg:h-32 aspect-square flex items-center justify-center rounded-lg overflow-hidden relative">
-                        <img
-                          src={image}
-                          alt={`Thumbnail ${index + 1}`}
-                          className="w-full h-full object-cover bg-transparent rounded-lg"
-                          loading="lazy"
-                          onError={(e) => {
-                            // Remove broken image from session
-                            const newImages = selectedSession.images.filter((_, i) => i !== index);
-                            setSelectedSession({ ...selectedSession, images: newImages });
-                            // Also update in sessions state
-                            const updatedSessions = sessions.map(session => {
-                              if (session.id === selectedSession.id) {
-                                return { ...session, images: newImages };
-                              }
-                              return session;
-                            });
-                            setSessions(updatedSessions);
-                            if ((selectedPhotos[selectedSession.id] || []).includes(index)) {
-                              setSelectedPhotos(prev => ({
-                                ...prev,
-                                [selectedSession.id]: (prev[selectedSession.id] || []).filter(i => i !== index)
-                              }));
-                            }
-                            if (currentImageIndex >= newImages.length) {
-                              setCurrentImageIndex(Math.max(0, newImages.length - 1));
-                            }
-                          }}
-                        />
-                      </div>
-                      <button
-                        className="absolute top-1 right-1 bg-white/80 hover:bg-red-100 text-red-600 rounded-full p-1 shadow"
-                        style={{ zIndex: 2 }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeletePhoto(selectedSession.id, index);
-                        }}
-                        title="Delete image"
+              {/* Photo Thumbnails - Scrollable */}
+              <div className="flex-1 overflow-y-auto min-h-0 mb-4">
+                <div className="grid grid-cols-2 gap-2 lg:gap-3">
+                  {selectedSession.images.map((image, index) => {
+                    const isSelected = (selectedPhotos[selectedSession.id] || []).includes(index);
+                    return (
+                      <div
+                        key={index}
+                        className={`relative rounded-lg overflow-hidden transition-all duration-200 ${
+                          isSelected
+                            ? "ring-2 ring-blue-400 bg-blue-50"
+                            : "bg-white"
+                        }`}
+                        onClick={() => setCurrentImageIndex(index)}
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                      </button>
-                    </div>
-                  );
-                })}
+                        {/* Static tick box for selection */}
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => {
+                            setSelectedPhotos((prev) => {
+                              const current = prev[selectedSession.id] || [];
+                              if (current.includes(index)) {
+                                // Deselect
+                                return { ...prev, [selectedSession.id]: current.filter(i => i !== index) };
+                              } else {
+                                // Select
+                                return { ...prev, [selectedSession.id]: [...current, index] };
+                              }
+                            });
+                          }}
+                          className="absolute top-1 left-1 z-10 w-5 h-5 accent-green-500 bg-white border border-gray-300 rounded focus:ring-2 focus:ring-green-400 cursor-pointer"
+                          style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}
+                        />
+                        {/* Square aspect ratio wrapper, object-cover for gallery look */}
+                        <div className="w-full h-24 lg:h-32 aspect-square flex items-center justify-center rounded-lg overflow-hidden relative">
+                          <img
+                            src={image}
+                            alt={`Thumbnail ${index + 1}`}
+                            className="w-full h-full object-cover bg-transparent rounded-lg"
+                            loading="lazy"
+                            onError={(e) => {
+                              // Remove broken image from session
+                              const newImages = selectedSession.images.filter((_, i) => i !== index);
+                              setSelectedSession({ ...selectedSession, images: newImages });
+                              // Also update in sessions state
+                              const updatedSessions = sessions.map(session => {
+                                if (session.id === selectedSession.id) {
+                                  return { ...session, images: newImages };
+                                }
+                                return session;
+                              });
+                              setSessions(updatedSessions);
+                              if ((selectedPhotos[selectedSession.id] || []).includes(index)) {
+                                setSelectedPhotos(prev => ({
+                                  ...prev,
+                                  [selectedSession.id]: (prev[selectedSession.id] || []).filter(i => i !== index)
+                                }));
+                              }
+                              if (currentImageIndex >= newImages.length) {
+                                setCurrentImageIndex(Math.max(0, newImages.length - 1));
+                              }
+                            }}
+                          />
+                        </div>
+                        <button
+                          className="absolute top-1 right-1 bg-white/80 hover:bg-red-100 text-red-600 rounded-full p-1 shadow"
+                          style={{ zIndex: 2 }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeletePhoto(selectedSession.id, index);
+                          }}
+                          title="Delete image"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
+              {/* Proceed to Cart button at the bottom of sidebar */}
+              <Button
+                onClick={handleProceedToCart}
+                className="w-full mt-5 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-bold rounded-full shadow-lg text-lg transition-all"
+                style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.18)' }}
+                disabled={totalSelectedCount === 0}
+              >
+                <ShoppingCart className="h-8 w-6 mr-2" />
+                Proceed to Cart ({totalSelectedCount})
+              </Button>
             </div>
           </div>
         </div>
@@ -788,17 +808,6 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
           </AlertDialogContent>
         </AlertDialog>
       </div>
-
-      {/* Add Proceed to Cart button fixed at bottom right */}
-      <button
-        onClick={handleProceedToCart}
-        className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-bold rounded-full shadow-lg text-lg transition-all"
-        style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.18)' }}
-        disabled={totalSelectedCount === 0}
-      >
-        <ShoppingCart className="h-6 w-6" />
-        Proceed to Cart ({totalSelectedCount})
-      </button>
 
       {/* Floating Orders List Button */}
       <button
