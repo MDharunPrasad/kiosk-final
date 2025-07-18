@@ -95,7 +95,7 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
           setLastSession(empty_session)
           setCurrentImageIndex(0)
           setIsLoadingSessions(true)
-          const results = await searchSessions(selectedDate,"8",selectedPhotographer);
+          const results = await searchSessions(selectedDate,selectedPhotographer,"8");
           setSessions(results);
           setError(null);
   
