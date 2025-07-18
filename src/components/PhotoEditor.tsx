@@ -432,7 +432,9 @@ export function PhotoEditor({
 
             const canvasWidth = canvas.getWidth();
             const canvasHeight = canvas.getHeight();
-            // Center the cropped image on the canvas, keep its cropped size and aspect ratio
+            // Scale the cropped image so its height matches the canvas height
+            const scale = canvasHeight / newImg.height;
+            newImg.scale(scale);
             newImg.set({
               left: canvasWidth / 2,
               top: canvasHeight / 2,
@@ -1338,6 +1340,17 @@ export function PhotoEditor({
     }
   };
 
+  // Helper to reset editor to a valid state
+  const resetEditorToValidState = () => {
+    if (currentImages[selectedImageIndex]) {
+      loadImageToCanvas(currentImages[selectedImageIndex]);
+      setUndoStack([]);
+      setRedoStack([]);
+      setIsImageLoaded(true);
+      alert('Editor state was invalid. The image has been reset.');
+    }
+  };
+
   // Undo handler
   const handleUndo = () => {
     if (undoStack.length === 0 || !fabricCanvasRef.current) return;
@@ -1348,20 +1361,13 @@ export function PhotoEditor({
     setRedoStack(r => [...r, currentState]);
     fabricCanvasRef.current.loadFromJSON(prevState, () => {
       fabricCanvasRef.current.renderAll();
-      const mainImage = fabricCanvasRef.current.getObjects().find((obj: any) => obj.id === 'mainImage');
-      if (!mainImage) {
-        alert('Undo failed: Main image missing or state corrupted. The editor will reset.');
-        if (currentImages[selectedImageIndex]) {
-          loadImageToCanvas(currentImages[selectedImageIndex]);
-        }
-        setUndoStack([]);
-        setRedoStack([]);
-        setIsRestoringState(false);
-        return;
-      }
       syncToolStateWithCanvas();
-      setIsImageLoaded(true);
+      const mainImage = fabricCanvasRef.current.getObjects().find((obj: any) => obj.id === 'mainImage');
+      setIsImageLoaded(!!mainImage);
       setIsRestoringState(false);
+      if (!mainImage) {
+        resetEditorToValidState();
+      }
     });
   };
 
@@ -1375,20 +1381,13 @@ export function PhotoEditor({
     setUndoStack(u => [...u, currentState]);
     fabricCanvasRef.current.loadFromJSON(nextState, () => {
       fabricCanvasRef.current.renderAll();
-      const mainImage = fabricCanvasRef.current.getObjects().find((obj: any) => obj.id === 'mainImage');
-      if (!mainImage) {
-        alert('Redo failed: Main image missing or state corrupted. The editor will reset.');
-        if (currentImages[selectedImageIndex]) {
-          loadImageToCanvas(currentImages[selectedImageIndex]);
-        }
-        setUndoStack([]);
-        setRedoStack([]);
-        setIsRestoringState(false);
-        return;
-      }
       syncToolStateWithCanvas();
-      setIsImageLoaded(true);
+      const mainImage = fabricCanvasRef.current.getObjects().find((obj: any) => obj.id === 'mainImage');
+      setIsImageLoaded(!!mainImage);
       setIsRestoringState(false);
+      if (!mainImage) {
+        resetEditorToValidState();
+      }
     });
   };
 
@@ -1648,23 +1647,45 @@ export function PhotoEditor({
 
                       {/* Frame Tools */}
                       {category.id === 'frame' && (
-                        <div className="grid grid-cols-3 gap-2">
-                          {frameOptions.map((frame) => {
-                            const IconComponent = frame.icon;
-                            return (
-                              <Button
-                                key={frame.value}
-                                variant={selectedFrame === frame.value ? "default" : "outline"}
-                                className="h-16 flex flex-col items-center justify-center p-2"
-                                onClick={() => applyFrame(frame.value)}
+                        <>
+                          <div className="grid grid-cols-3 gap-2">
+                            {frameOptions.map((frame) => {
+                              const IconComponent = frame.icon;
+                              return (
+                                <Button
+                                  key={frame.value}
+                                  variant={selectedFrame === frame.value ? "default" : "outline"}
+                                  className="h-16 flex flex-col items-center justify-center p-2"
+                                  onClick={() => applyFrame(frame.value)}
+                                  disabled={!isImageLoaded}
+                                >
+                                  <IconComponent className="text-2xl mb-1" />
+                                  <span className="text-xs">{frame.label}</span>
+                                </Button>
+                              );
+                            })}
+                          </div>
+                          {/* Frame Size Slider - only show if a frame is selected */}
+                          {selectedFrame !== 'none' && (
+                            <div className="w-full mt-4 flex flex-col items-center">
+                              <label className="text-sm font-medium mb-1">Frame Size: {frameSize}px</label>
+                              <Input
+                                type="range"
+                                min="-50"
+                                max="100"
+                                value={frameSize}
+                                onChange={e => {
+                                  setFrameSize(Number(e.target.value));
+                                  if (selectedFrame !== 'none') {
+                                    applyFrame(selectedFrame);
+                                  }
+                                }}
+                                className="w-full"
                                 disabled={!isImageLoaded}
-                              >
-                                <IconComponent className="text-2xl mb-1" />
-                                <span className="text-xs">{frame.label}</span>
-                              </Button>
-                            );
-                          })}
-                        </div>
+                              />
+                            </div>
+                          )}
+                        </>
                       )}
 
                       {/* Border Tools */}
@@ -1878,26 +1899,6 @@ export function PhotoEditor({
                 </div>
               )}
             </div>
-            {/* Frame Size Slider - only show if a frame is selected */}
-            {selectedFrame !== 'none' && (
-              <div className="w-full max-w-xs mt-4 flex flex-col items-center">
-                <label className="text-sm font-medium mb-1">Frame Size: {frameSize}px</label>
-                <Input
-                  type="range"
-                  min="-50"
-                  max="100"
-                  value={frameSize}
-                  onChange={e => {
-                    setFrameSize(Number(e.target.value));
-                    if (selectedFrame !== 'none') {
-                      applyFrame(selectedFrame);
-                    }
-                  }}
-                  className="w-full"
-                  disabled={!isImageLoaded}
-                />
-              </div>
-            )}
             {/* Save Changes and Reset Buttons below canvas */}
             <div className="mt-4 flex gap-3">
               <Button 

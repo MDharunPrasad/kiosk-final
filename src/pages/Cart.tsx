@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useCart } from "../context/CartContext";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { mockSessions } from "../components/CounterStaffDashboard";
+import { mockSessions } from "@/constants/MockSession";
 
 const TAX_RATE = 0.0825;
 const SHIPPING = 5.99;

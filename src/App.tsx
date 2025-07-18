@@ -9,7 +9,7 @@ import Cart from "./pages/Cart";
 import { CartProvider } from "./context/CartContext";
 import { CounterStaffDashboard } from "./components/CounterStaffDashboard";
 import { PhotographerDashboard } from "./components/PhotographerDashboard";
-import {AdminDashboard } from "./components/AdminDashboard";
+import AdminDashboard from "./pages/AdminDashboard";
 import OrderConfirmation from "./pages/OrderConfirmation";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { AuthProvider } from "./context/AuthContext";
