@@ -339,8 +339,8 @@ export default function AdminDashboard() {
       </div>
       <div className="flex flex-1 overflow-hidden min-h-0">
         {/* Sidebar */}
-        <aside className="w-72 lg:w-80 bg-white dark:bg-slate-800 border-r border-border p-4 lg:p-6 flex flex-col flex-shrink-0 min-w-0 group">
-          <div className="mb-8 flex items-center gap-2">
+        <aside className="w-72 lg:w-80 bg-white dark:bg-slate-800 border-r border-border p-4 lg:p-6 flex flex-col flex-shrink-0 min-w-0 group fixed left-0 top-0 h-screen z-30">
+          <div className="mb-8 flex items-center gap-2 mt-20 lg:mt-0">
             <span className="w-3 h-3 rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 block" />
             <span className="font-bold text-lg text-purple-700 tracking-wide">Admin Menu</span>
           </div>
@@ -368,7 +368,7 @@ export default function AdminDashboard() {
           </div>
         </aside>
         {/* Main Content */}
-        <main className="flex-1 p-8 overflow-y-auto bg-transparent">
+        <main className="flex-1 p-8 overflow-y-auto bg-transparent ml-72 lg:ml-80">
           <div className="flex justify-between items-center mb-8">
             <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">{SIDEBAR_LINKS.find(l => l.key === activeSection)?.label}</h1>
           </div>
