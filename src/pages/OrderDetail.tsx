@@ -62,7 +62,7 @@ export default function OrderDetail() {
   return (
     <div className="min-h-screen w-full flex flex-col bg-gradient-to-br from-gray-50 to-green-50 items-center justify-center py-10 px-2">
       {/* Subtle back button above card */}
-      <div className="w-full max-w-5xl flex items-start mb-2">
+      <div className="w-full max-w-4xl flex items-start mb-2"> {/* reduced max-w-5xl to max-w-4xl */}
         <button
           onClick={() => navigate(-1)}
           className="flex items-center gap-2 text-gray-500 hover:text-green-700 font-semibold text-base px-4 py-2 rounded-lg bg-white shadow border border-gray-200 transition-all"
@@ -71,8 +71,8 @@ export default function OrderDetail() {
           Back to Orders
         </button>
       </div>
-      <div className="w-full max-w-5xl flex flex-col items-center justify-center min-h-[60vh]">
-        <div className="bg-white rounded-2xl shadow-2xl p-12 md:p-16 flex flex-col md:flex-row gap-12 md:gap-16 border border-gray-100 relative max-w-6xl w-full">
+      <div className="w-full max-w-4xl flex flex-col items-center justify-center min-h-[60vh]"> {/* reduced max-w-5xl to max-w-4xl */}
+        <div className="bg-white rounded-2xl shadow-2xl p-6 md:p-10 flex flex-col md:flex-row gap-8 md:gap-10 border border-gray-100 relative max-w-4xl w-full"> {/* reduced padding and max-w-6xl to max-w-4xl */}
           {/* Left: Images Preview Column */}
           <div className="flex-1 min-w-0 flex flex-col">
             <div className="flex items-center gap-3 mb-8">
@@ -80,29 +80,33 @@ export default function OrderDetail() {
               <h1 className="text-4xl font-extrabold tracking-tight text-gray-900">M2 Photography</h1>
             </div>
             <h2 className="font-semibold text-2xl mb-6 text-gray-800">Ordered Photos</h2>
-            <div className="overflow-y-auto custom-scrollbar max-h-[500px] min-h-[500px] pr-3 border rounded-xl bg-gray-50">
-              <div className={`grid ${images.length > 8 ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5' : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4'} gap-4 md:gap-6 p-4`}>
-                {images.length === 0 && <div className="text-gray-400">No images</div>}
-                {images.map((img, idx) => (
-                  <div key={idx} className="flex flex-col items-center justify-center">
-                    <img
-                      src={img}
-                      alt={`Order Photo ${idx + 1}`}
-                      className="w-72 h-[216px] object-cover rounded-xl border border-green-200 shadow-sm bg-white" // 4:3 ratio: 288px x 216px
-                      onError={e => {
-                        e.currentTarget.onerror = null;
-                        e.currentTarget.style.display = 'none';
-                        const parent = e.currentTarget.parentElement;
-                        if (parent && !parent.querySelector('.img-fallback')) {
-                          const fallback = document.createElement('div');
-                          fallback.className = 'img-fallback flex flex-col items-center justify-center w-72 h-[216px] text-gray-400 text-base font-semibold rounded-xl bg-gray-100 border border-green-200 shadow-sm';
-                          fallback.innerText = 'Image not found';
-                          parent.appendChild(fallback);
-                        }
-                      }}
-                    />
-                  </div>
-                ))}
+            <div className="border rounded-xl bg-gray-50 p-0 flex items-center justify-center" style={{ aspectRatio: '1 / 1', width: '100%', maxWidth: 340, minWidth: 220, minHeight: 220, maxHeight: 340 }}>
+              <div className="overflow-y-auto custom-scrollbar w-full h-full" style={{ aspectRatio: '1 / 1' }}>
+                <div className="grid grid-cols-3 gap-4 p-4"> {/* Always 3 columns */}
+                  {images.length === 0 && <div className="text-gray-400">No images</div>}
+                  {images.map((img, idx) => (
+                    <div key={idx} className="flex flex-col items-center justify-center">
+                      <div className="w-24 h-24 bg-white border rounded-xl shadow-sm flex items-center justify-center overflow-hidden"> {/* 96x96px squares */}
+                        <img
+                          src={img}
+                          alt={`Order Photo ${idx + 1}`}
+                          className="w-full h-full object-cover"
+                          onError={e => {
+                            e.currentTarget.onerror = null;
+                            e.currentTarget.style.display = 'none';
+                            const parent = e.currentTarget.parentElement;
+                            if (parent && !parent.querySelector('.img-fallback')) {
+                              const fallback = document.createElement('div');
+                              fallback.className = 'img-fallback flex flex-col items-center justify-center w-full h-full text-gray-400 text-base font-semibold rounded-xl bg-white border border-green-200 shadow-sm';
+                              fallback.innerText = 'Image not found';
+                              parent.appendChild(fallback);
+                            }
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
