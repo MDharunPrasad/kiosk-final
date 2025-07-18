@@ -72,63 +72,59 @@ export default function OrderDetail() {
         </button>
       </div>
       <div className="w-full max-w-5xl flex flex-col items-center justify-center min-h-[60vh]">
-        <div className="bg-white rounded-2xl shadow-2xl p-8 md:p-12 flex flex-col md:flex-row gap-10 md:gap-12 border border-gray-100 relative">
+        <div className="bg-white rounded-2xl shadow-2xl p-12 md:p-16 flex flex-col md:flex-row gap-12 md:gap-16 border border-gray-100 relative max-w-6xl w-full">
           {/* Left: Images Preview Column */}
           <div className="flex-1 min-w-0 flex flex-col">
-            <div className="flex items-center gap-3 mb-6">
-              <img src="/m2-logo.jpg" alt="M2 Photography Logo" className="w-10 h-10 object-contain rounded" />
-              <h1 className="text-3xl font-extrabold tracking-tight text-gray-900">M2 Photography</h1>
+            <div className="flex items-center gap-3 mb-8">
+              <img src="/m2-logo.jpg" alt="M2 Photography Logo" className="w-14 h-14 object-contain rounded" />
+              <h1 className="text-4xl font-extrabold tracking-tight text-gray-900">M2 Photography</h1>
             </div>
-            <h2 className="font-semibold text-lg mb-4 text-gray-800">Ordered Photos</h2>
-            <div className="overflow-y-auto max-h-[400px] pr-2 border rounded-lg bg-gray-50">
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 p-2">
+            <h2 className="font-semibold text-2xl mb-6 text-gray-800">Ordered Photos</h2>
+            <div className="overflow-y-auto custom-scrollbar max-h-[500px] min-h-[500px] pr-3 border rounded-xl bg-gray-50">
+              <div className={`grid ${images.length > 8 ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5' : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4'} gap-4 md:gap-6 p-4`}>
                 {images.length === 0 && <div className="text-gray-400">No images</div>}
                 {images.map((img, idx) => (
-                  <div key={idx} className="relative bg-white rounded shadow-sm p-2 flex flex-col items-center">
-                    <img src={img} alt={`Order Photo ${idx + 1}`} className="w-24 h-24 object-cover rounded border mb-2" />
-                    <div className="text-xs font-medium text-gray-800 truncate text-center mb-1">Photo {idx + 1}</div>
-                    {/* Print count tag (assume 1 for now) */}
-                    <span className="absolute top-2 right-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow">x1</span>
-                    {/* Checkbox for selecting image to print */}
-                    <input
-                      type="checkbox"
-                      checked={selected[idx]}
-                      onChange={() => setSelected(sel => sel.map((v, i) => i === idx ? !v : v))}
-                      className="absolute top-2 left-2 w-5 h-5 accent-green-500 bg-white border border-gray-300 rounded focus:ring-2 focus:ring-green-400 cursor-pointer"
-                      title="Select for printing"
+                  <div key={idx} className="flex flex-col items-center justify-center">
+                    <img
+                      src={img}
+                      alt={`Order Photo ${idx + 1}`}
+                      className="w-72 h-[216px] object-cover rounded-xl border border-green-200 shadow-sm bg-white" // 4:3 ratio: 288px x 216px
+                      onError={e => {
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.style.display = 'none';
+                        const parent = e.currentTarget.parentElement;
+                        if (parent && !parent.querySelector('.img-fallback')) {
+                          const fallback = document.createElement('div');
+                          fallback.className = 'img-fallback flex flex-col items-center justify-center w-72 h-[216px] text-gray-400 text-base font-semibold rounded-xl bg-gray-100 border border-green-200 shadow-sm';
+                          fallback.innerText = 'Image not found';
+                          parent.appendChild(fallback);
+                        }
+                      }}
                     />
-                    {/* Individual print button */}
-                    <Button
-                      size="sm"
-                      className="mt-2 w-full bg-gradient-to-r from-blue-500 to-indigo-500 text-white font-semibold rounded shadow hover:scale-105 transition-all"
-                      onClick={() => handlePrintOne(img)}
-                    >
-                      Print This Photo
-                    </Button>
                   </div>
                 ))}
               </div>
             </div>
           </div>
           {/* Right: Invoice Details */}
-          <div className="w-full md:w-96 flex flex-col justify-center">
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 flex flex-col gap-4 sticky top-10">
-              <h3 className="font-semibold text-xl mb-2 text-gray-900">Order Invoice</h3>
-              <div className="flex justify-between text-base text-gray-700"><span>Order ID</span><span>{id}</span></div>
-              <div className="flex justify-between text-base text-gray-700"><span>Date</span><span>{date}</span></div>
-              <div className="flex justify-between text-base text-gray-700"><span>Customer</span><span>{customer}</span></div>
-              <div className="flex justify-between text-base text-gray-700"><span>Status</span><span>{status}</span></div>
-              <div className="flex justify-between text-base text-gray-700"><span>Photo Count</span><span>{images.length}</span></div>
+          <div className="w-full md:w-[420px] flex flex-col justify-center">
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 flex flex-col gap-6 sticky top-10">
+              <h3 className="font-semibold text-2xl mb-2 text-gray-900">Order Invoice</h3>
+              <div className="flex justify-between text-lg text-gray-700"><span>Order ID</span><span>{id}</span></div>
+              <div className="flex justify-between text-lg text-gray-700"><span>Date</span><span>{date}</span></div>
+              <div className="flex justify-between text-lg text-gray-700"><span>Customer</span><span>{customer}</span></div>
+              <div className="flex justify-between text-lg text-gray-700"><span>Status</span><span>{status}</span></div>
+              <div className="flex justify-between text-lg text-gray-700"><span>Photo Count</span><span>{images.length}</span></div>
               <div className="border-t my-2"></div>
-              <div className="flex justify-between font-bold text-2xl text-gray-900"><span>Total</span><span>${amount.toFixed(2)}</span></div>
+              <div className="flex justify-between font-bold text-3xl text-gray-900"><span>Total</span><span>${amount.toFixed(2)}</span></div>
               <Button
-                className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-bold py-2 rounded-xl text-base shadow-lg transition-all duration-150 active:scale-95"
+                className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-bold py-3 rounded-xl text-lg shadow-lg transition-all duration-150 active:scale-95"
                 onClick={handlePrintSelected}
               >
                 Print Photos
               </Button>
               <Button
-                className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-2 rounded-xl text-base shadow-lg transition-all duration-150 active:scale-95"
+                className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-3 rounded-xl text-lg shadow-lg transition-all duration-150 active:scale-95"
                 onClick={() => window.print()}
               >
                 Print Invoice

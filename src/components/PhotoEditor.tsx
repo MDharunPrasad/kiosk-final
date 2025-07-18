@@ -182,6 +182,9 @@ export function PhotoEditor({
   // Track previous image index for auto-save
   const prevImageIndexRef = useRef(selectedImageIndex);
 
+  // Add this state to store the original images
+  const [originalImages] = useState<string[]>(session.images);
+
   // Auto-save canvas state before switching images, and auto-restore on switch
   useEffect(() => {
     const prevIndex = prevImageIndexRef.current;
@@ -195,8 +198,8 @@ export function PhotoEditor({
       fabricCanvasRef.current.loadFromJSON(canvasStates[selectedImageIndex], () => {
         fabricCanvasRef.current.renderAll();
       });
-    } else if (fabricCanvasRef.current && currentImages[selectedImageIndex]) {
-      loadImageToCanvas(currentImages[selectedImageIndex]);
+    } else if (fabricCanvasRef.current && originalImages[selectedImageIndex]) {
+      loadImageToCanvas(originalImages[selectedImageIndex]);
     }
   }, [selectedImageIndex]);
 
@@ -252,8 +255,8 @@ export function PhotoEditor({
 
       fabricCanvasRef.current = canvas;
 
-      if (currentImages.length > 0) {
-        loadImageToCanvas(currentImages[selectedImageIndex]);
+      if (originalImages.length > 0) {
+        loadImageToCanvas(originalImages[selectedImageIndex]);
       }
 
       return () => {
@@ -273,10 +276,10 @@ export function PhotoEditor({
 
   // Load image when selectedImageIndex changes
   useEffect(() => {
-    if (fabricCanvasRef.current && currentImages[selectedImageIndex] && fabricLoaded) {
-      loadImageToCanvas(currentImages[selectedImageIndex]);
+    if (fabricCanvasRef.current && originalImages[selectedImageIndex] && fabricLoaded) {
+      loadImageToCanvas(originalImages[selectedImageIndex]);
     }
-  }, [selectedImageIndex, fabricLoaded, currentImages]);
+  }, [selectedImageIndex, fabricLoaded, originalImages]);
 
   // Convert image to base64 to avoid CORS issues
   const convertImageToBase64 = (imageUrl: string): Promise<string> => {
@@ -1173,8 +1176,8 @@ export function PhotoEditor({
     setSelectedFilter('none');
     setIsCropping(false);
     
-    if (currentImages[selectedImageIndex]) {
-      loadImageToCanvas(currentImages[selectedImageIndex]);
+    if (originalImages[selectedImageIndex]) {
+      loadImageToCanvas(originalImages[selectedImageIndex]);
     }
     
     setEditedImages(prev => {
@@ -1334,16 +1337,16 @@ export function PhotoEditor({
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
     const mainImage = canvas.getObjects().find((obj: any) => obj.id === 'mainImage');
-    if (!mainImage && currentImages[selectedImageIndex]) {
-      await loadImageToCanvas(currentImages[selectedImageIndex], true);
+    if (!mainImage && originalImages[selectedImageIndex]) {
+      await loadImageToCanvas(originalImages[selectedImageIndex], true);
       setIsImageLoaded(true);
     }
   };
 
   // Helper to reset editor to a valid state
   const resetEditorToValidState = () => {
-    if (currentImages[selectedImageIndex]) {
-      loadImageToCanvas(currentImages[selectedImageIndex]);
+    if (originalImages[selectedImageIndex]) {
+      loadImageToCanvas(originalImages[selectedImageIndex]);
       setUndoStack([]);
       setRedoStack([]);
       setIsImageLoaded(true);
