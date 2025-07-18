@@ -17,7 +17,7 @@ const sampleImages = [
 ];
 
 // Mock order data
-const mockOrders = [
+export const mockOrders = [
   { id: "ORD-1001", customer: "Emma Johnson", date: "2024-07-14", amount: 125.00, status: "Paid", images: sampleImages },
   { id: "ORD-1002", customer: "Michael Smith", date: "2024-07-13", amount: 81.50, status: "Pending", images: sampleImages.slice(0, 2) },
   { id: "ORD-1003", customer: "Sarah Williams", date: "2024-07-12", amount: 210.70, status: "Paid", images: sampleImages.slice(1, 4) },

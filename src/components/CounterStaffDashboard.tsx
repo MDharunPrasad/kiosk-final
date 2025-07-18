@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Calendar, Search, ChevronLeft, ChevronRight, Plus, Trash2, Minus, ShoppingCart, Edit } from "lucide-react";
+import { Calendar, Search, ChevronLeft, ChevronRight, Plus, Trash2, Minus, ShoppingCart, Edit, ShoppingBag } from "lucide-react";
 import { useRef } from "react";
 import {
   AlertDialog,
@@ -798,6 +798,15 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
       >
         <ShoppingCart className="h-6 w-6" />
         Proceed to Cart ({totalSelectedCount})
+      </button>
+
+      {/* Floating Orders List Button */}
+      <button
+        onClick={() => navigate("/orders-list")}
+        className="fixed left-6 bottom-6 z-50 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold text-lg rounded-full px-8 py-4 shadow-xl flex items-center gap-3 hover:scale-105 hover:shadow-2xl transition-all duration-150 active:scale-95"
+      >
+        <ShoppingBag size={24} />
+        Orders List
       </button>
 
       {/* Photo Editor */}

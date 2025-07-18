@@ -3,6 +3,8 @@ import { AuthDialog } from "@/components/AuthDialog";
 import { PhotographerDashboard } from "@/components/PhotographerDashboard";
 import { CounterStaffDashboard } from "@/components/CounterStaffDashboard";
 import AdminDashboard from "./AdminDashboard";
+import { useNavigate } from "react-router-dom";
+import { ShoppingBag } from "lucide-react";
 
 const Index = () => {
   const [currentUser, setCurrentUser] = useState<{ role: string; username?: string } | null>(null);
@@ -29,19 +31,37 @@ const Index = () => {
     localStorage.removeItem("currentUser");
   }
 
+  const navigate = useNavigate();
+
   if (currentUser?.role === "photographer") {
-    return <PhotographerDashboard username={currentUser.username} />;
+    return (
+      <>
+        <PhotographerDashboard username={currentUser.username} />
+      </>
+    );
   }
 
   if (currentUser?.role === "operator") {
-    return <CounterStaffDashboard username={currentUser.username} />;
+    return (
+      <>
+        <CounterStaffDashboard username={currentUser.username} />
+      </>
+    );
   }
 
   if (currentUser?.role === "admin") {
-    return <AdminDashboard />;
+    return (
+      <>
+        <AdminDashboard />
+      </>
+    );
   }
 
-  return <AuthDialog onLogin={handleLogin} />;
+  return (
+    <>
+      <AuthDialog onLogin={handleLogin} />
+    </>
+  );
 };
 
 export default Index;
