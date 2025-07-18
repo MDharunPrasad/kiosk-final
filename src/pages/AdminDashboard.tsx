@@ -8,13 +8,21 @@ import { Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { useMediaQuery } from "@uidotdev/usehooks";
 
+// Sample images for sessions and orders
+const sampleImages = [
+  '/lovable-uploads/6088a135-d271-4528-8e1b-a06cbbe58d03.png',
+  '/lovable-uploads/79770456-acec-4ab2-b867-86159b94b4ea.png',
+  '/lovable-uploads/9abd203d-7cad-4487-b2c4-48f26090e9b6.png',
+  '/lovable-uploads/a03d6497-7d75-4799-898d-62da65caad0f.png',
+];
+
 // Mock order data
 const mockOrders = [
-  { id: "ORD-1001", customer: "Emma Johnson", date: "2024-07-14", amount: 125.00, status: "Paid" },
-  { id: "ORD-1002", customer: "Michael Smith", date: "2024-07-13", amount: 81.50, status: "Pending" },
-  { id: "ORD-1003", customer: "Sarah Williams", date: "2024-07-12", amount: 210.70, status: "Paid" },
-  { id: "ORD-1004", customer: "David Brown", date: "2024-07-11", amount: 65.20, status: "Refunded" },
-  { id: "ORD-1005", customer: "Jessica Miller", date: "2024-07-10", amount: 145.00, status: "Paid" },
+  { id: "ORD-1001", customer: "Emma Johnson", date: "2024-07-14", amount: 125.00, status: "Paid", images: sampleImages },
+  { id: "ORD-1002", customer: "Michael Smith", date: "2024-07-13", amount: 81.50, status: "Pending", images: sampleImages.slice(0, 2) },
+  { id: "ORD-1003", customer: "Sarah Williams", date: "2024-07-12", amount: 210.70, status: "Paid", images: sampleImages.slice(1, 4) },
+  { id: "ORD-1004", customer: "David Brown", date: "2024-07-11", amount: 65.20, status: "Refunded", images: sampleImages.slice(0, 1) },
+  { id: "ORD-1005", customer: "Jessica Miller", date: "2024-07-10", amount: 145.00, status: "Paid", images: sampleImages },
 ];
 
 const SIDEBAR_LINKS = [
@@ -110,7 +118,7 @@ const sampleSessionsFallback = [
     type: "Family",
     status: "pending",
     printCount: 2,
-    images: ["/public/placeholder.svg"],
+    images: sampleImages,
     customerDetails: {
       name: "Johnson Family",
       location: "Central Park",
@@ -125,7 +133,7 @@ const sampleSessionsFallback = [
     type: "Wedding",
     status: "ready",
     printCount: 5,
-    images: ["/public/placeholder.svg"],
+    images: sampleImages.slice(0, 3),
     customerDetails: {
       name: "Sarah & Mike",
       location: "Riverside Gardens",
@@ -140,7 +148,7 @@ const sampleSessionsFallback = [
     type: "Graduation",
     status: "completed",
     printCount: 3,
-    images: ["/public/placeholder.svg"],
+    images: sampleImages.slice(1, 4),
     customerDetails: {
       name: "Emily Rodriguez",
       location: "University Campus",
@@ -916,58 +924,6 @@ export default function AdminDashboard() {
               </div>
             </div>
           )}
-          {/* Manage Operators Section */}
-          {activeSection === "operators" && (
-            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8 border border-purple-100 dark:border-slate-700">
-              <h2 className="font-semibold text-xl mb-6 text-purple-800 dark:text-purple-200">Operators</h2>
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-gray-500">
-                      <th className="py-2">Operator</th>
-                      <th className="py-2">Contact</th>
-                      <th className="py-2">Role</th>
-                      <th className="py-2">Last Login</th>
-                      <th className="py-2">Status</th>
-                      <th className="py-2">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(sampleOperators || []).map((op) => (
-                      <tr key={op.id} className="border-b last:border-0">
-                        <td className="py-2 flex items-center gap-3">
-                          <img src={op.avatar} alt={op.name} className="w-8 h-8 rounded-full object-cover border" />
-                          <div>
-                            <div className="font-semibold">{op.name}</div>
-                            <div className="text-xs text-gray-400">{op.id}</div>
-                          </div>
-                        </td>
-                        <td className="py-2">
-                          <div className="text-xs">{op.email}</div>
-                          <div className="text-xs text-gray-400">{op.phone}</div>
-                        </td>
-                        <td className="py-2">
-                          <span className={`px-2 py-1 rounded text-xs font-semibold ${op.role === 'Support' ? 'bg-green-100 text-green-700' : 'bg-indigo-100 text-indigo-700'}`}>{op.role}</span>
-                        </td>
-                        <td className="py-2">
-                          <div className="text-xs">{op.lastLogin}</div>
-                          <div className="text-xs text-gray-400">{op.lastLoginDate}</div>
-                        </td>
-                        <td className="py-2">
-                          <span className={`inline-block w-3 h-3 rounded-full ${op.active ? 'bg-green-400' : 'bg-gray-300'}`} title={op.active ? 'Active' : 'Inactive'}></span>
-                        </td>
-                        <td className="py-2 flex gap-2">
-                          <Button size="sm" variant="outline">View</Button>
-                          <Button size="sm" variant="outline">Edit</Button>
-                          <Button size="sm" variant="destructive">Remove</Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
           {/* Placeholder for other sections */}
           {!(activeSection === "dashboard" || activeSection === "sessions" || activeSection === "orders" || activeSection === "pricing" || activeSection === "photographers" || activeSection === "operators" || activeSection === "reports") && (
             <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8 border border-purple-100 dark:border-slate-700 text-gray-500 text-center">Section coming soon...</div>
@@ -1001,7 +957,12 @@ export default function AdminDashboard() {
                     <div className="mb-2"><span className="font-semibold">Date:</span> {modal.data.date}</div>
                     <div className="mb-2"><span className="font-semibold">Amount:</span> ${modal.data.amount.toFixed(2)}</div>
                     <div className="mb-2"><span className="font-semibold">Status:</span> {modal.data.status}</div>
-                    <div className="mt-4 text-gray-500 text-sm">(Order photo preview coming soon...)</div>
+                    <div className="mb-2"><span className="font-semibold">Order Photos:</span></div>
+                    <div className="flex gap-2 flex-wrap">
+                      {(modal.data.images || sampleImages.slice(0, 3)).map((img: string, idx: number) => (
+                        <img key={idx} src={img} alt="Order" className="w-20 h-20 object-cover rounded border" />
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
