@@ -39,7 +39,7 @@ export default function OrdersList() {
   return (
     <div className="min-h-screen w-full flex bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50">
       {/* Sidebar for filters */}
-      <div className="w-80 min-w-[260px] bg-white/90 backdrop-blur-sm border-r border-green-200/50 flex flex-col p-8 gap-8 shadow-2xl animate-slide-in-left">
+      <div className="w-80 min-w-[260px] bg-white/90 backdrop-blur-sm border-r border-green-200/50 flex flex-col p-8 gap-8 shadow-2xl">
         <button
           onClick={() => navigate("/operator")}
           className="flex items-center gap-2 text-white font-semibold text-base px-6 py-3 rounded-xl bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 mb-6"
@@ -85,9 +85,9 @@ export default function OrdersList() {
         </div>
       </div>
       {/* Main dashboard area */}
-      <div className="flex-1 flex flex-col items-center justify-center py-12 px-8 animate-slide-in-right">
+      <div className="flex-1 flex flex-col items-center justify-center py-12 px-8">
         <div className="w-full max-w-6xl flex flex-col items-center justify-center min-h-[70vh]">
-          <div className="bg-white/95 backdrop-blur-md rounded-3xl shadow-2xl p-12 border border-green-100/50 flex flex-col items-center w-full h-[80vh] max-h-[900px] animate-fade-in">
+          <div className="bg-white/95 backdrop-blur-md rounded-3xl shadow-2xl p-12 border border-green-100/50 flex flex-col items-center w-full h-[80vh] max-h-[900px]">
             <h2 className="font-bold text-4xl mb-8 bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">Completed Orders</h2>
             <div className="w-full flex-1 overflow-y-auto min-h-0 custom-scrollbar" style={{ maxHeight: "600px" }}>
               <table className="w-full text-lg border-separate border-spacing-y-2">
@@ -103,15 +103,15 @@ export default function OrdersList() {
                 </thead>
                 <tbody>
                   {filteredOrders.map(order => (
-                    <tr key={order.id} className="border-b last:border-0 hover:bg-green-50/60 transition-all duration-300 transform hover:scale-[1.02] rounded-xl group">
-                      <td className="py-4 px-6 font-medium bg-white/90 backdrop-blur-sm rounded-l-xl shadow-lg group-hover:shadow-xl transition-all duration-300">{order.id}</td>
-                      <td className="py-4 px-6 bg-white/90 backdrop-blur-sm shadow-lg group-hover:shadow-xl transition-all duration-300">{order.customer}</td>
-                      <td className="py-4 px-6 bg-white/90 backdrop-blur-sm shadow-lg group-hover:shadow-xl transition-all duration-300">{order.date}</td>
-                      <td className="py-4 px-6 bg-white/90 backdrop-blur-sm shadow-lg group-hover:shadow-xl transition-all duration-300">${order.amount.toFixed(2)}</td>
-                      <td className="py-4 px-6 bg-white/90 backdrop-blur-sm shadow-lg group-hover:shadow-xl transition-all duration-300">
+                    <tr key={order.id} className="border-b last:border-0 hover:bg-green-50/60 transition-all duration-200 rounded-xl group">
+                      <td className="py-4 px-6 font-medium bg-white/90 backdrop-blur-sm rounded-l-xl shadow-lg group-hover:shadow-xl transition-all duration-200">{order.id}</td>
+                      <td className="py-4 px-6 bg-white/90 backdrop-blur-sm shadow-lg group-hover:shadow-xl transition-all duration-200">{order.customer}</td>
+                      <td className="py-4 px-6 bg-white/90 backdrop-blur-sm shadow-lg group-hover:shadow-xl transition-all duration-200">{order.date}</td>
+                      <td className="py-4 px-6 bg-white/90 backdrop-blur-sm shadow-lg group-hover:shadow-xl transition-all duration-200">${order.amount.toFixed(2)}</td>
+                      <td className="py-4 px-6 bg-white/90 backdrop-blur-sm shadow-lg group-hover:shadow-xl transition-all duration-200">
                         <span className={`px-4 py-2 rounded-full text-base font-semibold shadow-md ${order.status === "Ordered" ? "bg-gradient-to-r from-green-400 to-green-500 text-white" : order.status === "Pending" ? "bg-gradient-to-r from-yellow-400 to-yellow-500 text-white" : order.status === "Cancelled" ? "bg-gradient-to-r from-red-400 to-red-500 text-white" : "bg-gradient-to-r from-gray-400 to-gray-500 text-white"}`}>{order.status}</span>
                       </td>
-                      <td className="py-4 px-6 bg-white/90 backdrop-blur-sm rounded-r-xl shadow-lg group-hover:shadow-xl transition-all duration-300">
+                      <td className="py-4 px-6 bg-white/90 backdrop-blur-sm rounded-r-xl shadow-lg group-hover:shadow-xl transition-all duration-200">
                         <Button size="lg" variant="outline" onClick={() => navigate(`/order-detail/${order.id}`)} className="hover:bg-green-50 hover:border-green-300 transition-all duration-200">
                           View
                         </Button>
