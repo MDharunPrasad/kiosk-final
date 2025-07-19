@@ -400,7 +400,7 @@ export function CounterStaffDashboard({ username }: CounterStaffDashboardProps) 
       <div className="flex flex-1 overflow-hidden min-h-0">
         {/* Left Sidebar */}
         <div className="w-72 lg:w-80 bg-white dark:bg-slate-800 border-r border-border p-4 lg:p-6 flex flex-col flex-shrink-0 min-w-0 group">
-          <h1 className="text-xl lg:text-2xl font-bold mb-4 lg:mb-6">Customer Sessions</h1>
+          <h1 className="text-xl lg:text-2xl font-bold mb-4 lg:mb-6">All Sessions</h1>
           
           {/* Search */}
           <div className="relative mb-4">
