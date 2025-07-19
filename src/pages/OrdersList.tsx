@@ -109,7 +109,7 @@ export default function OrdersList() {
                       <td className="py-3 px-4 bg-white shadow-sm">{order.date}</td>
                       <td className="py-3 px-4 bg-white shadow-sm">${order.amount.toFixed(2)}</td>
                       <td className="py-3 px-4 bg-white shadow-sm">
-                        <span className={`px-3 py-1 rounded text-base font-semibold ${order.status === "Ordered" ? "bg-green-100 text-green-700" : order.status === "Pending" ? "bg-yellow-100 text-yellow-700" : "bg-red-100 text-red-700"}`}>{order.status}</span>
+                        <span className={`px-3 py-1 rounded text-base font-semibold ${order.status === "Ordered" ? "bg-green-100 text-green-700" : order.status === "Pending" ? "bg-yellow-100 text-yellow-700" : order.status === "Cancelled" ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-700"}`}>{order.status}</span>
                       </td>
                       <td className="py-3 px-4 bg-white rounded-r-xl shadow-sm">
                         <Button size="lg" variant="outline" onClick={() => navigate(`/order-detail/${order.id}`)}>

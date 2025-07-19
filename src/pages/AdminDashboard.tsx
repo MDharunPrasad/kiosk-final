@@ -18,11 +18,11 @@ const sampleImages = [
 
 // Mock order data
 export const mockOrders = [
-  { id: "ORD-1001", customer: "Emma Johnson", date: "2024-07-14", amount: 125.00, status: "Paid", images: sampleImages },
+  { id: "ORD-1001", customer: "Emma Johnson", date: "2024-07-14", amount: 125.00, status: "Ordered", images: sampleImages },
   { id: "ORD-1002", customer: "Michael Smith", date: "2024-07-13", amount: 81.50, status: "Pending", images: sampleImages.slice(0, 2) },
-  { id: "ORD-1003", customer: "Sarah Williams", date: "2024-07-12", amount: 210.70, status: "Paid", images: sampleImages.slice(1, 4) },
-  { id: "ORD-1004", customer: "David Brown", date: "2024-07-11", amount: 65.20, status: "Refunded", images: sampleImages.slice(0, 1) },
-  { id: "ORD-1005", customer: "Jessica Miller", date: "2024-07-10", amount: 145.00, status: "Paid", images: sampleImages },
+  { id: "ORD-1003", customer: "Sarah Williams", date: "2024-07-12", amount: 210.70, status: "Ordered", images: sampleImages.slice(1, 4) },
+  { id: "ORD-1004", customer: "David Brown", date: "2024-07-11", amount: 65.20, status: "Cancelled", images: sampleImages.slice(0, 1) },
+  { id: "ORD-1005", customer: "Jessica Miller", date: "2024-07-10", amount: 145.00, status: "Ordered", images: sampleImages },
 ];
 
 const SIDEBAR_LINKS = [
@@ -60,9 +60,9 @@ const sessionsPieData = [
   { name: "Weekend", value: 448 },
 ];
 const orderStatusPieData = [
-  { name: "Paid", value: 785 },
+  { name: "Ordered", value: 785 },
   { name: "Pending", value: 152 },
-  { name: "Refunded", value: 63 },
+  { name: "Cancelled", value: 63 },
 ];
 const pieColors = ["#8b5cf6", "#6366f1", "#f472b6", "#22d3ee", "#facc15", "#34d399", "#f87171"];
 
@@ -254,9 +254,9 @@ const reportRevenueTrend = [
   { week: 'Week 4', revenue: 8100 },
 ];
 const reportOrderStatus = [
-  { name: 'Paid', value: 981 },
+  { name: 'Ordered', value: 981 },
   { name: 'Pending', value: 190 },
-  { name: 'Refunded', value: 76 },
+  { name: 'Cancelled', value: 76 },
 ];
 const reportPieColors = ['#4f46e5', '#fbbf24', '#f87171'];
 
@@ -316,7 +316,7 @@ export default function AdminDashboard() {
   const recentSessions = filteredSessions.length > 0 ? filteredSessions : safeMockSessions.slice(0, 3);
   const allSessions = filteredSessions.length > 0 ? filteredSessions : safeMockSessions.slice(0, 3);
   const filteredOrders = mockOrders.filter(o =>
-    !statusFilter || (statusFilter === "Paid" && o.status === "Paid") || (statusFilter === "Pending" && o.status === "Pending") || (statusFilter === "Refunded" && o.status === "Refunded")
+    !statusFilter || (statusFilter === "Ordered" && o.status === "Ordered") || (statusFilter === "Pending" && o.status === "Pending") || (statusFilter === "Cancelled" && o.status === "Cancelled")
   );
   const photographers = Array.from(new Set((mockSessions || []).map(s => s.customerDetails.photographer).filter(Boolean)));
 
@@ -492,9 +492,9 @@ export default function AdminDashboard() {
                   <option value="pending">Pending</option>
                   <option value="ready">Ready</option>
                   <option value="completed">Completed</option>
-                  <option value="Paid">Paid</option>
+                  <option value="Ordered">Ordered</option>
                   <option value="Pending">Pending</option>
-                  <option value="Refunded">Refunded</option>
+                  <option value="Cancelled">Cancelled</option>
                 </select>
                 {/* Photographer Filter */}
                 <select
@@ -575,7 +575,7 @@ export default function AdminDashboard() {
                           <td className="py-4">{order.date}</td>
                           <td className="py-4">${order.amount.toFixed(2)}</td>
                           <td className="py-4">
-                            <span className={`px-2 py-1 rounded text-xs font-semibold ${order.status === "Paid" ? "bg-green-100 text-green-700" : order.status === "Pending" ? "bg-yellow-100 text-yellow-700" : "bg-purple-100 text-purple-700"}`}>{order.status}</span>
+                            <span className={`px-2 py-1 rounded text-xs font-semibold ${order.status === "Ordered" ? "bg-green-100 text-green-700" : order.status === "Pending" ? "bg-yellow-100 text-yellow-700" : "bg-purple-100 text-purple-700"}`}>{order.status}</span>
                           </td>
                           <td className="py-4">
                             <Button size="sm" variant="outline" onClick={() => setModal({ type: "order", data: order })}>View</Button>
@@ -643,7 +643,7 @@ export default function AdminDashboard() {
                       <td className="py-2">{order.date}</td>
                       <td className="py-2">${order.amount.toFixed(2)}</td>
                       <td className="py-2">
-                        <span className={`px-2 py-1 rounded text-xs font-semibold ${order.status === "Paid" ? "bg-green-100 text-green-700" : order.status === "Pending" ? "bg-yellow-100 text-yellow-700" : "bg-purple-100 text-purple-700"}`}>{order.status}</span>
+                        <span className={`px-2 py-1 rounded text-xs font-semibold ${order.status === "Ordered" ? "bg-green-100 text-green-700" : order.status === "Pending" ? "bg-yellow-100 text-yellow-700" : "bg-purple-100 text-purple-700"}`}>{order.status}</span>
                       </td>
                       <td className="py-2">
                         <Button size="sm" variant="outline" onClick={() => setModal({ type: "order", data: order })}>View</Button>
